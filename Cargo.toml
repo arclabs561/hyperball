@@ -49,3 +49,6 @@ required-features = ["ndarray"]
 name = "hierarchy_recovery"
 required-features = ["ndarray"]
 
+[[example]]
+name = "graph_diagnostics"
+

@@ -42,6 +42,13 @@ let sum = ball.mobius_add(&x.view(), &y.view());
 | Log map | `log_map_zero()` | `log_map()` |
 | Project | `project()` | `project()` |
 
+## Examples
+
+- `cargo run --example graph_diagnostics`: build small graphs, compute all-pairs shortest-path
+  distances, then measure:
+  - δ-hyperbolicity (4-point, exact \(O(n^4)\) for small \(n\))
+  - ultrametric max violation
+
 ## Why Hyperbolic?
 
 Hyperbolic space has exponentially growing volume with radius, matching how trees have exponentially growing nodes with depth. A 10-dim hyperbolic space embeds trees that would need thousands of Euclidean dimensions.
