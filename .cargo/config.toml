@@ -1,0 +1,6 @@
+[alias]
+# Prefer nextest for routine runs. Keep `cargo test` available as-is.
+t = "nextest run"
+xtest = "nextest run"
+xtest-all = "nextest run --all-features"
+
