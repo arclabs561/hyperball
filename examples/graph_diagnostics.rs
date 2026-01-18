@@ -13,6 +13,37 @@
 use hyp::core::diagnostics;
 
 fn main() {
+    // Optional: load a real graph from an undirected edge list.
+    //
+    // HYP_EDGELIST=/path/to/edges.txt cargo run --example graph_diagnostics
+    //
+    // Format: two whitespace-separated integer node ids per line, undirected.
+    if let Ok(path) = std::env::var("HYP_EDGELIST") {
+        let g = load_undirected_edgelist(std::path::Path::new(&path))
+            .expect("failed to load HYP_EDGELIST");
+        let n = g.len();
+        println!("loaded graph from HYP_EDGELIST: n={n}");
+
+        // Exact δ is O(n^4). Keep it explicit and safe.
+        let max_n = 60usize;
+        let (g_small, note) = if n <= max_n {
+            (g, None)
+        } else {
+            (induced_prefix_subgraph(&g, max_n), Some((n, max_n)))
+        };
+        if let Some((n_full, n_used)) = note {
+            println!("  NOTE: n={n_full} too large for exact δ; using induced subgraph of first n={n_used}");
+        }
+
+        let d = all_pairs_shortest_path(&g_small);
+        let n2 = g_small.len();
+        let delta = diagnostics::delta_hyperbolicity_four_point_exact_f64(&d, n2);
+        let um = diagnostics::ultrametric_max_violation_f64(&d, n2);
+        println!("  δ (4-point exact) = {delta}");
+        println!("  ultrametric max violation = {um}");
+        println!();
+    }
+
     // 1) A tree metric: path distances on a tree are 0-hyperbolic.
     let tree = make_path_graph(8);
     let d_tree = all_pairs_shortest_path(&tree);
@@ -117,5 +148,63 @@ fn bfs(g: &[Vec<usize>], start: usize) -> Vec<usize> {
         assert!(d != usize::MAX, "graph disconnected (unreachable node {i})");
     }
     dist
+}
+
+fn load_undirected_edgelist(path: &std::path::Path) -> Result<Vec<Vec<usize>>, String> {
+    let txt = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+
+    let mut edges: Vec<(usize, usize)> = Vec::new();
+    let mut max_node = 0usize;
+
+    for (line_no, line) in txt.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut it = line.split_whitespace();
+        let a = it
+            .next()
+            .ok_or_else(|| format!("line {}: missing src", line_no + 1))?;
+        let b = it
+            .next()
+            .ok_or_else(|| format!("line {}: missing dst", line_no + 1))?;
+        let u: usize = a
+            .parse()
+            .map_err(|e| format!("line {}: bad src '{a}': {e}", line_no + 1))?;
+        let v: usize = b
+            .parse()
+            .map_err(|e| format!("line {}: bad dst '{b}': {e}", line_no + 1))?;
+        max_node = max_node.max(u).max(v);
+        edges.push((u, v));
+    }
+
+    let n = max_node + 1;
+    if n == 0 {
+        return Err("edgelist produced empty graph".to_string());
+    }
+
+    let mut g = vec![Vec::new(); n];
+    for (u, v) in edges {
+        if u == v {
+            continue;
+        }
+        g[u].push(v);
+        g[v].push(u);
+    }
+    for nbrs in &mut g {
+        nbrs.sort_unstable();
+        nbrs.dedup();
+    }
+    Ok(g)
+}
+
+fn induced_prefix_subgraph(g: &[Vec<usize>], n: usize) -> Vec<Vec<usize>> {
+    let n = n.min(g.len());
+    let mut out = vec![Vec::new(); n];
+    for u in 0..n {
+        out[u] = g[u].iter().copied().filter(|&v| v < n).collect();
+    }
+    out
 }
 
