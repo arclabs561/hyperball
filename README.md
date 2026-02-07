@@ -7,14 +7,13 @@ Dual-licensed under MIT or Apache-2.0.
 
 [crates.io](https://crates.io/crates/hyp) | [docs.rs](https://docs.rs/hyp)
 
-## Backend choices
+## Quickstart
 
-This crate is split into:
-
-- `hyp::core`: backend-agnostic implementations that operate on slices (`&[T]`) and return `Vec<T>`.
-  This is the “math substrate” layer.
-- `hyp`’s `ndarray` API: kept behind the `ndarray` feature (enabled by default) for a convenient
-  concrete backend.
+```toml
+[dependencies]
+hyp = "0.1.0"
+ndarray = "0.15"
+```
 
 ```rust
 use hyp::PoincareBall;
@@ -32,6 +31,15 @@ let dist = ball.distance(&x.view(), &y.view());
 let sum = ball.mobius_add(&x.view(), &y.view());
 ```
 
+## Backend choices
+
+This crate is split into:
+
+- `hyp::core`: backend-agnostic implementations that operate on slices (`&[T]`) and return `Vec<T>`.
+  This is the “math substrate” layer.
+- `hyp`’s `ndarray` API: kept behind the `ndarray` feature (enabled by default) for a convenient
+  concrete backend.
+
 ## Operations
 
 | Operation | Poincare | Lorentz |
@@ -46,7 +54,7 @@ let sum = ball.mobius_add(&x.view(), &y.view());
 
 - `cargo run --example graph_diagnostics`: build small graphs, compute all-pairs shortest-path
   distances, then measure:
-  - δ-hyperbolicity (4-point, exact \(O(n^4)\) for small \(n\))
+  - δ-hyperbolicity (4-point, exact $O(n^4)$ for small $n$)
   - ultrametric max violation
   - defaults to `testdata/karate_club.edgelist`
   - set `HYP_DATASET=lesmis` or `HYP_DATASET=florentine` for other bundled graphs

@@ -1,4 +1,3 @@
-#![cfg(feature = "ndarray")]
 //! Lorentz (hyperboloid) model of hyperbolic space.
 //!
 //! The Lorentz model represents hyperbolic space as the upper sheet of a
@@ -106,7 +105,7 @@ where
     pub fn exp_map(&self, x: &ArrayView1<T>, v: &ArrayView1<T>) -> Array1<T> {
         let v_norm_sq = self.minkowski_dot(v, v);
         let epsilon = T::from_f64(1e-15).unwrap();
-        
+
         if v_norm_sq < epsilon {
             return x.to_owned();
         }
@@ -135,7 +134,7 @@ where
         // v = y + c * inner * x (since inner is negative, this adds)
         let term_x = x.mapv(|val| val * self.c * inner);
         let v = y.to_owned() + term_x;
-        
+
         let v_norm_sq = self.minkowski_dot(&v.view(), &v.view());
 
         if v_norm_sq < epsilon {
@@ -160,7 +159,7 @@ where
         let one = T::one();
         let denom = one - self.c * inner_xy;
         let epsilon = T::from_f64(1e-15).unwrap();
-        
+
         if denom.abs() < epsilon {
             return v.to_owned();
         }
@@ -185,8 +184,9 @@ pub mod conversions {
 
     /// Convert Poincare ball point to Lorentz hyperboloid.
     /// Maps n-dimensional ball point to (n+1)-dimensional hyperboloid point.
-    pub fn poincare_to_lorentz<T>(ball: &PoincareBall<T>, x: &ArrayView1<T>) -> Array1<T> 
-    where T: Float + FromPrimitive + Zero + ndarray::ScalarOperand
+    pub fn poincare_to_lorentz<T>(ball: &PoincareBall<T>, x: &ArrayView1<T>) -> Array1<T>
+    where
+        T: Float + FromPrimitive + Zero + ndarray::ScalarOperand,
     {
         let c = ball.c;
         let x_norm_sq = x.dot(x);
@@ -211,8 +211,9 @@ pub mod conversions {
 
     /// Convert Lorentz hyperboloid point to Poincare ball.
     /// Maps (n+1)-dimensional hyperboloid point to n-dimensional ball point.
-    pub fn lorentz_to_poincare<T>(lorentz: &LorentzModel<T>, x: &ArrayView1<T>) -> Array1<T> 
-    where T: Float + FromPrimitive + Zero + ndarray::ScalarOperand
+    pub fn lorentz_to_poincare<T>(lorentz: &LorentzModel<T>, x: &ArrayView1<T>) -> Array1<T>
+    where
+        T: Float + FromPrimitive + Zero + ndarray::ScalarOperand,
     {
         let c_sqrt = lorentz.c.sqrt();
         // Poincare: p_i = x_i / (x_0 * sqrt(c) + 1)

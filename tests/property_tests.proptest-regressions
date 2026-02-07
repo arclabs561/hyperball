@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 9a3e62d090846db2555f9cf6e0c95afa57fbd0f45c782d969ca94140783af449 # shrinks to coords = [0.5728239766899357, 1.270760371273439, 1.6791616604962463]
 cc 81eb6e718b6c2535324bcca1fa445277abd8054460a98288657c8cc5e9f23a28 # shrinks to coords = [-1.8156130462061553, 1.3557992144093354, -1.62762144169327]
+cc a7cec9d2fbd0e9bf731b7dcdb4fdb29a86befe37dc460060c6abf72b92493d3d # shrinks to x = [0.5331229272090444, 0.0, 0.0], shape=[3], strides=[1], layout=CFcf (0xf), const ndim=1, y = [-0.4790030033599762, 0.33643046965077333, 0.0], shape=[3], strides=[1], layout=CFcf (0xf), const ndim=1, v = [0.0, 0.0, 0.055632050355184884]

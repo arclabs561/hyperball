@@ -201,8 +201,8 @@ where
     pub fn project(&self, x: &[T]) -> Vec<T> {
         assert!(x.len() >= 2);
         let mut space_norm_sq = T::zero();
-        for i in 1..x.len() {
-            space_norm_sq = space_norm_sq + x[i] * x[i];
+        for &xi in x.iter().skip(1) {
+            space_norm_sq = space_norm_sq + xi * xi;
         }
         let t = (space_norm_sq + T::one() / self.c).sqrt();
         let mut out = x.to_vec();
@@ -219,9 +219,7 @@ where
         let t = (space_norm_sq + T::one() / self.c).sqrt();
         let mut out = vec![T::zero(); v.len() + 1];
         out[0] = t;
-        for i in 0..v.len() {
-            out[i + 1] = v[i];
-        }
+        out[1..].copy_from_slice(v);
         out
     }
 
@@ -275,8 +273,8 @@ where
         }
         let v_norm = v_norm_sq.sqrt();
         let scale = d / v_norm;
-        for i in 0..v.len() {
-            v[i] = v[i] * scale;
+        for vi in &mut v {
+            *vi = *vi * scale;
         }
         v
     }
@@ -557,4 +555,3 @@ mod tests {
         assert!((delta - 1.0).abs() < 1e-12, "expected 1, got {delta}");
     }
 }
-

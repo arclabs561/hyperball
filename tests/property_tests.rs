@@ -26,6 +26,7 @@
 use hyp::{LorentzModel, PoincareBall};
 use ndarray::{Array1, ArrayView1};
 use proptest::prelude::*;
+use skel::Manifold;
 
 const TOL: f64 = 1e-6;
 #[allow(dead_code)] // For future strict numerical tests
@@ -44,6 +45,20 @@ fn poincare_point(dim: usize) -> impl Strategy<Value = Array1<f64>> {
         let norm = arr.dot(&arr).sqrt();
         if norm > 0.9 {
             arr * (0.9 / norm)
+        } else {
+            arr
+        }
+    })
+}
+
+/// Generate a Poincaré point with a conservative radius bound.
+/// This is the regime we care about for stable step-based integrators (small dt).
+fn poincare_point_safe(dim: usize) -> impl Strategy<Value = Array1<f64>> {
+    prop::collection::vec(-0.6f64..0.6f64, dim).prop_map(|v: Vec<f64>| {
+        let arr = Array1::from_vec(v);
+        let norm = arr.dot(&arr).sqrt();
+        if norm > 0.6 {
+            arr * (0.6 / norm)
         } else {
             arr
         }
@@ -373,6 +388,27 @@ proptest! {
             // Just verify distances are finite, curvature has effect
             prop_assert!(!d1.is_nan() && !d2.is_nan());
         }
+    }
+
+    #[test]
+    fn poincare_parallel_transport_preserves_metric_norm(
+        x in poincare_point_safe(3),
+        y in poincare_point_safe(3),
+        v in prop::collection::vec(-0.2f64..0.2f64, 3usize),
+    ) {
+        let ball = PoincareBall::<f64>::new(1.0);
+        let v = Array1::from_vec(v);
+        let pt = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+
+        let lambda_x = 2.0 / (1.0 - ball.c * x.dot(&x));
+        let lambda_y = 2.0 / (1.0 - ball.c * y.dot(&y));
+
+        let norm2_x = lambda_x * lambda_x * v.dot(&v);
+        let norm2_y = lambda_y * lambda_y * pt.dot(&pt);
+
+        let rel = (norm2_x - norm2_y).abs() / norm2_x.max(1e-12);
+        // Loose tolerance: transport is numerically integrated.
+        prop_assert!(rel < 3e-2, "rel={rel}");
     }
 }
 

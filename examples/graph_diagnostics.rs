@@ -119,12 +119,12 @@ fn main() {
 
 fn make_path_graph(n: usize) -> Vec<Vec<usize>> {
     let mut g = vec![Vec::new(); n];
-    for i in 0..n {
+    for (i, nbrs) in g.iter_mut().enumerate() {
         if i > 0 {
-            g[i].push(i - 1);
+            nbrs.push(i - 1);
         }
         if i + 1 < n {
-            g[i].push(i + 1);
+            nbrs.push(i + 1);
         }
     }
     g
@@ -132,11 +132,11 @@ fn make_path_graph(n: usize) -> Vec<Vec<usize>> {
 
 fn make_cycle_graph(n: usize) -> Vec<Vec<usize>> {
     let mut g = vec![Vec::new(); n];
-    for i in 0..n {
+    for (i, nbrs) in g.iter_mut().enumerate() {
         let prev = if i == 0 { n - 1 } else { i - 1 };
         let next = (i + 1) % n;
-        g[i].push(prev);
-        g[i].push(next);
+        nbrs.push(prev);
+        nbrs.push(next);
     }
     g
 }
@@ -233,4 +233,3 @@ fn induced_prefix_subgraph(g: &[Vec<usize>], n: usize) -> Vec<Vec<usize>> {
     }
     out
 }
-

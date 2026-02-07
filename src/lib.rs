@@ -80,6 +80,12 @@
 //! - Nickel & Kiela (2017): "Poincaré Embeddings for Learning Hierarchical Representations"
 //! - Nickel & Kiela (2018): "Learning Continuous Hierarchies in the Lorentz Model"
 //! - Chami et al. (2019): "Hyperbolic Graph Convolutional Neural Networks"
+//! - Chen & Lipman (2023): "Riemannian Flow Matching on General Geometries" (foundational for Hyperbolic FM)
+//! - Zaghen et al. (2025): "Towards Variational Flow Matching on General Geometries" (RG-VFM)
+//!
+//! # General Geometric Deep Learning
+//!
+//! - Bronstein et al. (2021/2025): "Geometric Deep Learning" (book/course) — see [geometricdeeplearning.com](https://geometricdeeplearning.com/).
 
 pub mod core;
 
@@ -93,6 +99,97 @@ pub mod lorentz;
 
 #[cfg(feature = "ndarray")]
 pub use lorentz::LorentzModel;
+
+use skel::Manifold;
+
+#[cfg(feature = "ndarray")]
+impl Manifold for PoincareBall<f64> {
+    fn exp_map(&self, x: &ArrayView1<f64>, v: &ArrayView1<f64>) -> Array1<f64> {
+        let c_sqrt = self.c.sqrt();
+        let v_norm = v.dot(v).sqrt();
+        let lambda_x = 2.0 / (1.0 - self.c * x.dot(x));
+
+        if v_norm < 1e-6 {
+            return x.to_owned();
+        }
+
+        let direction = (c_sqrt * lambda_x * v_norm / 2.0).tanh();
+        let scaled_v = (direction / (c_sqrt * v_norm)) * v;
+
+        self.mobius_add(x, &scaled_v.view())
+    }
+
+    fn log_map(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> Array1<f64> {
+        let neg_x = -x;
+        let diff = self.mobius_add(&neg_x.view(), y);
+        let diff_norm = diff.dot(&diff).sqrt();
+        let c_sqrt = self.c.sqrt();
+        let lambda_x = 2.0 / (1.0 - self.c * x.dot(x));
+
+        if diff_norm < 1e-6 {
+            return Array1::zeros(x.len());
+        }
+
+        let scale = (2.0 / (c_sqrt * lambda_x)) * (c_sqrt * diff_norm).atanh();
+        (scale / diff_norm) * diff
+    }
+
+    fn parallel_transport(
+        &self,
+        x: &ArrayView1<f64>,
+        y: &ArrayView1<f64>,
+        v: &ArrayView1<f64>,
+    ) -> Array1<f64> {
+        // Parallel transport along the unique geodesic from x to y, implemented by integrating
+        // the parallel-transport ODE induced by the Levi-Civita connection of the conformal metric
+        // g_x = λ(x)^2 I (λ(x) = 2 / (1 - c ||x||^2)).
+        //
+        // This is more faithful than the older "λ-ratio scaling" approximation: it preserves both
+        // length and direction (up to numeric error) by following the connection along the geodesic.
+
+        let n_steps: usize = 128;
+        let dt: f64 = 1.0 / (n_steps as f64);
+
+        let x0 = x.to_owned();
+        let x1 = y.to_owned();
+
+        if (&x0 - &x1).dot(&(&x0 - &x1)).sqrt() < 1e-12 {
+            return v.to_owned();
+        }
+
+        let geodesic_point = |t: f64| -> Array1<f64> {
+            let neg_x0 = x0.mapv(|v| -v);
+            let delta = self.mobius_add(&neg_x0.view(), &x1.view());
+            let log0 = self.log_map_zero(&delta.view());
+            let scaled = log0.mapv(|u| u * t);
+            let delta_t = self.exp_map_zero(&scaled.view());
+            let xt = self.mobius_add(&x0.view(), &delta_t.view());
+            self.project(&xt.view())
+        };
+
+        let mut v_cur = v.to_owned();
+
+        for i in 0..n_steps {
+            let t = (i as f64) * dt;
+            let xt = geodesic_point(t);
+            let xt_next = geodesic_point(t + dt);
+            let xdot = (&xt_next - &xt) / dt;
+
+            let c = self.c;
+            let lambda = 2.0 / (1.0 - c * xt.dot(&xt));
+
+            // (Γ(xt)(xdot, v))^k = c*λ * ( xdot^k (xt·v) + (xt·xdot) v^k - xt^k (xdot·v) )
+            let s1 = xt.dot(&v_cur);
+            let s2 = xt.dot(&xdot);
+            let s3 = xdot.dot(&v_cur);
+
+            let dv = -c * lambda * (&xdot * s1 + &v_cur * s2 - &xt * s3);
+            v_cur = v_cur + dv * dt;
+        }
+
+        v_cur
+    }
+}
 
 /// Poincaré Ball manifold.
 ///
@@ -152,7 +249,7 @@ where
     pub fn log_map_zero(&self, y: &ArrayView1<T>) -> Array1<T> {
         let y_norm = y.dot(y).sqrt();
         let epsilon = T::from_f64(1e-7).unwrap(); // f32 friendly epsilon
-        
+
         if y_norm < epsilon {
             return y.to_owned();
         }
@@ -187,7 +284,7 @@ where
         let one = T::one();
         let epsilon = T::from_f64(1e-5).unwrap();
         let max_norm = (one / self.c).sqrt() - epsilon;
-        
+
         if norm > max_norm {
             x * (max_norm / norm)
         } else {
@@ -200,6 +297,8 @@ where
 mod tests {
     use super::*;
     use ndarray::array;
+    use ndarray::ArrayView1;
+    use skel::Manifold;
 
     const EPS: f64 = 1e-10;
 
@@ -348,5 +447,56 @@ mod tests {
             d1,
             d2
         );
+    }
+
+    fn lambda(c: f64, x: &ArrayView1<f64>) -> f64 {
+        2.0 / (1.0 - c * x.dot(x))
+    }
+
+    #[test]
+    fn parallel_transport_is_identity_when_x_equals_y() {
+        let ball = PoincareBall::new(1.0);
+        let x = array![0.07, -0.02, 0.03];
+        let v = array![0.3, -0.1, 0.2];
+
+        let pt = ball.parallel_transport(&x.view(), &x.view(), &v.view());
+        let err = (&pt - &v).mapv(|t| t.abs()).sum();
+        assert!(err < 1e-10, "err={}", err);
+    }
+
+    #[test]
+    fn parallel_transport_preserves_metric_norm_smoke() {
+        let ball = PoincareBall::new(1.0);
+        let x = array![0.06, -0.03, 0.02];
+        let y = array![0.01, 0.04, -0.02];
+        let v = array![0.2, -0.15, 0.05];
+
+        let pt = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+
+        let lx = lambda(ball.c, &x.view());
+        let ly = lambda(ball.c, &y.view());
+
+        let norm2_x = lx * lx * v.dot(&v);
+        let norm2_y = ly * ly * pt.dot(&pt);
+
+        let rel = (norm2_x - norm2_y).abs() / norm2_x.max(1e-12);
+        assert!(rel < 5e-4, "rel={}", rel);
+    }
+
+    #[test]
+    fn parallel_transport_from_origin_matches_lambda_ratio() {
+        // Ganea et al. (2018), Thm 4: P_{0->x}(v) = (λ_0 / λ_x) v.
+        let ball = PoincareBall::new(1.0);
+        let origin = array![0.0, 0.0, 0.0];
+        let x = array![0.08, -0.01, 0.03];
+        let v = array![0.4, -0.2, 0.1];
+
+        let pt = ball.parallel_transport(&origin.view(), &x.view(), &v.view());
+        let l0 = lambda(ball.c, &origin.view());
+        let lx = lambda(ball.c, &x.view());
+        let expected = v.mapv(|t| t * (l0 / lx));
+
+        let err = (&pt - &expected).mapv(|t| t.abs()).sum();
+        assert!(err < 5e-4, "err={}", err);
     }
 }
