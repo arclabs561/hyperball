@@ -351,6 +351,96 @@ mod tests {
         }
     }
 
+    /// Build a tangent vector at x on the hyperboloid: <v, x>_L = 0.
+    /// Given space components, compute the time component.
+    fn make_tangent(lorentz: &LorentzModel<f64>, x: &Array1<f64>, space: &[f64]) -> Array1<f64> {
+        // <v, x>_L = -v_0 x_0 + sum(v_i x_i) = 0
+        // => v_0 = sum(v_i x_i) / x_0
+        let dot_space: f64 = space.iter().zip(x.iter().skip(1)).map(|(a, b)| a * b).sum();
+        let v0 = dot_space / x[0];
+        let mut v = Array1::zeros(x.len());
+        v[0] = v0;
+        for (i, &s) in space.iter().enumerate() {
+            v[i + 1] = s;
+        }
+        // Verify tangent constraint
+        let check = lorentz.minkowski_dot(&v.view(), &x.view());
+        assert!(check.abs() < 1e-10, "tangent constraint violated: {check}");
+        v
+    }
+
+    #[test]
+    fn test_parallel_transport_preserves_norm() {
+        // Use nearby points for better accuracy of the closed-form PT
+        let lorentz = LorentzModel::new(1.0);
+        let x = lorentz.from_euclidean(&array![0.1, 0.05].view());
+        let y = lorentz.from_euclidean(&array![0.12, 0.08].view());
+        let v = make_tangent(&lorentz, &x, &[0.5, -0.3]);
+
+        let pt = lorentz.parallel_transport(&x.view(), &y.view(), &v.view());
+
+        let norm_v = lorentz.minkowski_dot(&v.view(), &v.view());
+        let norm_pt = lorentz.minkowski_dot(&pt.view(), &pt.view());
+        assert!(
+            (norm_v - norm_pt).abs() < 1e-4,
+            "PT should preserve norm: {norm_v} vs {norm_pt}"
+        );
+    }
+
+    #[test]
+    fn test_parallel_transport_identity_when_same() {
+        let lorentz = LorentzModel::new(1.0);
+        let x = lorentz.from_euclidean(&array![0.5, 0.3].view());
+        let v = make_tangent(&lorentz, &x, &[0.4, -0.2]);
+
+        let pt = lorentz.parallel_transport(&x.view(), &x.view(), &v.view());
+        for i in 0..v.len() {
+            assert_relative_eq!(v[i], pt[i], epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_from_to_euclidean_round_trip() {
+        let lorentz = LorentzModel::new(1.0);
+        let euc = array![0.5, -0.3, 0.2];
+        let hyp = lorentz.from_euclidean(&euc.view());
+        let euc_back = lorentz.to_euclidean(&hyp.view());
+        for i in 0..euc.len() {
+            assert_relative_eq!(euc[i], euc_back[i], epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_exp_map_stays_on_manifold() {
+        let lorentz = LorentzModel::new(1.0);
+        let x = lorentz.from_euclidean(&array![0.3, 0.2].view());
+        let v = make_tangent(&lorentz, &x, &[5.0, -3.0]);
+        let y = lorentz.exp_map(&x.view(), &v.view());
+        assert!(
+            lorentz.is_on_manifold(&y.view(), 1e-4),
+            "exp_map result not on manifold"
+        );
+    }
+
+    #[test]
+    fn test_distance_nonneg() {
+        let lorentz = LorentzModel::new(1.0);
+        let points = [
+            array![0.5, 0.3],
+            array![-0.2, 0.4],
+            array![1.0, 1.0],
+            array![0.0, 0.0],
+        ];
+        for i in 0..points.len() {
+            for j in i..points.len() {
+                let xi = lorentz.from_euclidean(&points[i].view());
+                let xj = lorentz.from_euclidean(&points[j].view());
+                let d = lorentz.distance(&xi.view(), &xj.view());
+                assert!(d >= -1e-10, "negative distance: {d}");
+            }
+        }
+    }
+
     #[test]
     fn test_different_curvatures() {
         let l1 = LorentzModel::new(1.0);

@@ -486,6 +486,95 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_mobius_add_inverse() {
+        // x + (-x) = 0
+        let ball = PoincareBall::new(1.0);
+        let x = array![0.3, -0.2, 0.1];
+        let neg_x = x.mapv(|v| -v);
+        let result = ball.mobius_add(&x.view(), &neg_x.view());
+        let norm = result.dot(&result).sqrt();
+        assert!(norm < 1e-8, "x + (-x) should be ~0, got norm={norm}");
+    }
+
+    #[test]
+    fn test_mobius_left_cancellation() {
+        // (-x) + (x + y) = y
+        let ball = PoincareBall::new(1.0);
+        let x = array![0.1, 0.2];
+        let y = array![0.15, -0.1];
+        let neg_x = x.mapv(|v| -v);
+        let x_plus_y = ball.mobius_add(&x.view(), &y.view());
+        let result = ball.mobius_add(&neg_x.view(), &x_plus_y.view());
+        for i in 0..2 {
+            assert!(
+                (result[i] - y[i]).abs() < 1e-8,
+                "left cancellation failed at dim {i}: {:.8} vs {:.8}",
+                result[i],
+                y[i]
+            );
+        }
+    }
+
+    #[test]
+    fn test_distance_grows_near_boundary() {
+        // Points near the boundary should have larger distances
+        let ball = PoincareBall::new(1.0);
+        let near = array![0.1, 0.0];
+        let far = array![0.9, 0.0];
+        let offset = array![0.0, 0.05];
+
+        let d_near = ball.distance(&near.view(), &(&near + &offset).view());
+        let d_far = ball.distance(&far.view(), &(&far + &offset).view());
+
+        assert!(
+            d_far > d_near,
+            "distance near boundary should be larger: d_near={d_near}, d_far={d_far}"
+        );
+    }
+
+    #[test]
+    fn test_exp_log_round_trip_non_origin() {
+        // exp/log round-trip at a non-origin base point
+        let ball = PoincareBall::new(1.0);
+        let base = array![0.2, -0.1, 0.15];
+        let target = array![0.3, 0.1, -0.05];
+
+        let v = ball.log_map(&base.view(), &target.view());
+        let recovered = ball.exp_map(&base.view(), &v.view());
+
+        for i in 0..3 {
+            assert!(
+                (recovered[i] - target[i]).abs() < 1e-5,
+                "non-origin exp/log round trip failed at {i}: {:.6} vs {:.6}",
+                recovered[i],
+                target[i]
+            );
+        }
+    }
+
+    #[test]
+    fn test_distance_matches_between_models() {
+        // Poincare and Lorentz models should give the same distance
+        use crate::lorentz::{conversions::poincare_to_lorentz, LorentzModel};
+        let ball = PoincareBall::new(1.0);
+        let lorentz = LorentzModel::new(1.0);
+
+        let p = array![0.3, 0.2];
+        let q = array![-0.1, 0.4];
+
+        let d_poincare = ball.distance(&p.view(), &q.view());
+
+        let lp = poincare_to_lorentz(&ball, &p.view());
+        let lq = poincare_to_lorentz(&ball, &q.view());
+        let d_lorentz = lorentz.distance(&lp.view(), &lq.view());
+
+        assert!(
+            (d_poincare - d_lorentz).abs() < 1e-8,
+            "models should be isometric: poincare={d_poincare}, lorentz={d_lorentz}"
+        );
+    }
+
     fn lambda(c: f64, x: &ArrayView1<f64>) -> f64 {
         2.0 / (1.0 - c * x.dot(x))
     }
