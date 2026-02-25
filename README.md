@@ -2,7 +2,67 @@
 
 Hyperbolic geometry in Rust: Poincare ball and Lorentz hyperboloid models.
 
-Hyperbolic spaces embed tree-like structures in low dimensions where Euclidean spaces cannot. A binary tree of depth 10 needs ~1000 dimensions in Euclidean space but fits in 2D hyperbolic space with bounded distortion.
+## Problem
+
+Tree-like structures (taxonomies, file systems, parse trees) have exponentially many leaves but shallow depth. Euclidean space cannot embed them faithfully in low dimensions -- a binary tree of depth 10 has 1024 leaves and needs roughly that many Euclidean dimensions. Hyperbolic space has exponential volume growth, so the same tree fits in 2D with bounded distortion.
+
+This library provides the core operations (distance, exp/log maps, parallel transport) for both the Poincare ball and Lorentz hyperboloid models, plus diagnostics for measuring how tree-like a dataset is.
+
+## Examples
+
+**Embed a tree in 2D hyperbolic space**. Place a small binary tree in the Poincare disk and compare hyperbolic vs. Euclidean distances:
+
+```bash
+cargo run --example tree_embedding
+```
+
+```text
+Tree structure:
+       root
+      /    \
+     A      B
+    / \    / \
+   A1 A2  B1 B2
+
+   Distance | Euclidean | Hyperbolic | Ratio
+   ---------|-----------|------------|-------
+   d(root,A)  |     0.500 |      1.099 |   2.20x
+   d(root,A1) |     0.806 |      2.232 |   2.77x
+   d(A1,B1)   |     0.600 |      2.366 |   3.94x
+
+   Notice: hyperbolic distances grow faster for points near boundary.
+   This naturally encodes the tree hierarchy!
+```
+
+**WordNet-style taxonomy**. Embed a hierarchical vocabulary (animal -> mammal -> dog/cat, etc.) and verify that the hierarchy is recoverable from distances alone:
+
+```bash
+cargo run --example taxonomy_embedding
+```
+
+**Distortion vs. dimension**. Compare embedding quality across dimensions -- Poincare at 5D typically beats Euclidean at 50D for tree metrics:
+
+```bash
+cargo run --example distortion_vs_dimension
+```
+
+**Delta-hyperbolicity**. Measure how tree-like a metric space is using Gromov's four-point condition. Low delta means the space is close to a tree:
+
+```bash
+cargo run --example graph_diagnostics
+```
+
+### All examples
+
+```bash
+cargo run --example poincare_basics           # distance growth near boundary
+cargo run --example tree_embedding            # embed a tree in 2D hyperbolic space
+cargo run --example taxonomy_embedding        # WordNet-style hierarchy
+cargo run --example hierarchy_recovery        # recover tree structure from distances
+cargo run --example graph_diagnostics         # delta-hyperbolicity measurement
+cargo run --example lorentz_basics            # Lorentz hyperboloid model
+cargo run --example distortion_vs_dimension   # Poincare@5D beats Euclidean@50D
+```
 
 ## What it provides
 
@@ -33,18 +93,6 @@ let y = array![-0.2, 0.4];
 let d = ball.distance(&x.view(), &y.view());
 let v = ball.log_map_zero(&x.view());     // tangent at origin pointing to x
 let x_back = ball.exp_map_zero(&v.view()); // round-trip
-```
-
-## Examples
-
-```bash
-cargo run --example poincare_basics      # distance growth near boundary
-cargo run --example tree_embedding       # embed a tree in 2D hyperbolic space
-cargo run --example taxonomy_embedding   # WordNet-style hierarchy
-cargo run --example hierarchy_recovery   # recover tree structure from distances
-cargo run --example graph_diagnostics        # delta-hyperbolicity measurement
-cargo run --example lorentz_basics           # Lorentz hyperboloid model basics
-cargo run --example distortion_vs_dimension  # Poincare@5D beats Euclidean@50D
 ```
 
 ## Tests
