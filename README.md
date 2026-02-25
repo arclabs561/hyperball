@@ -42,7 +42,9 @@ cargo run --example poincare_basics      # distance growth near boundary
 cargo run --example tree_embedding       # embed a tree in 2D hyperbolic space
 cargo run --example taxonomy_embedding   # WordNet-style hierarchy
 cargo run --example hierarchy_recovery   # recover tree structure from distances
-cargo run --example graph_diagnostics    # delta-hyperbolicity measurement
+cargo run --example graph_diagnostics        # delta-hyperbolicity measurement
+cargo run --example lorentz_basics           # Lorentz hyperboloid model basics
+cargo run --example distortion_vs_dimension  # Poincare@5D beats Euclidean@50D
 ```
 
 ## Tests
@@ -51,7 +53,7 @@ cargo run --example graph_diagnostics    # delta-hyperbolicity measurement
 cargo test -p hyperball
 ```
 
-63 tests: unit tests, property-based tests (proptest), and numerical stability tests covering boundary behavior, exp/log round-trips, parallel transport norm preservation, and cross-model conversions.
+73 tests: unit tests, property-based tests (proptest), and numerical stability tests covering Mobius axioms (inverse, left cancellation), metric axioms (symmetry, triangle inequality, boundary growth), exp/log round-trips, parallel transport norm preservation, cross-model isometry, and Lorentz tangent space operations.
 
 ## License
 
