@@ -252,6 +252,7 @@ impl<T> PoincareBall<T>
 where
     T: Float + FromPrimitive + Zero + ndarray::ScalarOperand + ndarray::LinalgScalar,
 {
+    /// Create a Poincare ball model with curvature `c`.
     pub fn new(c: T) -> Self {
         Self { c }
     }

@@ -64,6 +64,7 @@ impl<T> LorentzModel<T>
 where
     T: Float + FromPrimitive + Zero + ndarray::ScalarOperand + ndarray::LinalgScalar,
 {
+    /// Create a Lorentz model with curvature `c` (must be positive).
     pub fn new(c: T) -> Self {
         assert!(c > T::zero(), "curvature must be positive");
         Self { c }

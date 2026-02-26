@@ -28,6 +28,7 @@ impl<T> PoincareBallCore<T>
 where
     T: Float + FromPrimitive,
 {
+    /// Create a Poincare ball with curvature `c` (must be positive).
     pub fn new(c: T) -> Self {
         assert!(c > T::zero(), "curvature must be positive");
         Self { c }
@@ -155,6 +156,7 @@ impl<T> LorentzModelCore<T>
 where
     T: Float + FromPrimitive,
 {
+    /// Create a Lorentz (hyperboloid) model with curvature `c` (must be positive).
     pub fn new(c: T) -> Self {
         assert!(c > T::zero(), "curvature must be positive");
         Self { c }
@@ -291,6 +293,7 @@ where
 pub mod conversions {
     use super::{Float, FromPrimitive, LorentzModelCore, PoincareBallCore};
 
+    /// Map a point from the Poincare ball to the Lorentz (hyperboloid) model.
     pub fn poincare_to_lorentz<T>(ball: &PoincareBallCore<T>, x: &[T]) -> Vec<T>
     where
         T: Float + FromPrimitive,
@@ -318,6 +321,7 @@ pub mod conversions {
         out
     }
 
+    /// Map a point from the Lorentz (hyperboloid) model to the Poincare ball.
     pub fn lorentz_to_poincare<T>(lorentz: &LorentzModelCore<T>, x: &[T]) -> Vec<T>
     where
         T: Float + FromPrimitive,
