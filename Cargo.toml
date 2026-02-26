@@ -12,7 +12,7 @@ keywords = ["hyperbolic", "poincare", "lorentz", "embeddings", "geometry"]
 categories = ["algorithms", "science", "mathematics"]
 
 [dependencies]
-skel = { path = "../skel" }
+skel = "0.1.0"
 ndarray = { version = "0.16", optional = true }
 num-traits = "0.2"
 thiserror = "2.0"
