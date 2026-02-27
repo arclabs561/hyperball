@@ -1,6 +1,6 @@
 [package]
 name = "hyperball"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.75"
 authors = ["Arc <attobop@gmail.com>"]
@@ -12,7 +12,7 @@ keywords = ["hyperbolic", "poincare", "lorentz", "embeddings", "geometry"]
 categories = ["algorithms", "science", "mathematics"]
 
 [dependencies]
-skel = "0.1.0"
+skel = "0.1.1"
 ndarray = { version = "0.16", optional = true }
 num-traits = "0.2"
 thiserror = "2.0"
