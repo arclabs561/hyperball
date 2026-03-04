@@ -128,11 +128,7 @@ fn conformal_factor(x: &Array1<f64>) -> f64 {
 ///   grad_u d = (4 / ((1 - ||u||^2) * sqrt(alpha) * (1 - alpha))) *
 ///              ((||v||^2 - 2<u,v> + 1)*u - (1 - ||u||^2)*v)
 /// where alpha = || -u (+) v ||^2.
-fn grad_distance_wrt_u(
-    ball: &PoincareBall<f64>,
-    u: &Array1<f64>,
-    v: &Array1<f64>,
-) -> Array1<f64> {
+fn grad_distance_wrt_u(ball: &PoincareBall<f64>, u: &Array1<f64>, v: &Array1<f64>) -> Array1<f64> {
     let neg_u = u.mapv(|x| -x);
     let diff = ball.mobius_add(&neg_u.view(), &v.view());
     let alpha = diff.dot(&diff); // || -u (+) v ||^2
@@ -173,10 +169,7 @@ fn main() {
     let lr = 0.05;
     let epochs = 300;
 
-    println!(
-        "{:>6}  {:>12}  {:>12}",
-        "epoch", "mean_loss", "max_||x||"
-    );
+    println!("{:>6}  {:>12}  {:>12}", "epoch", "mean_loss", "max_||x||");
     println!("{:-<6}  {:-<12}  {:-<12}", "", "", "");
 
     for epoch in 0..epochs {
@@ -219,7 +212,10 @@ fn main() {
                 continue;
             }
             // Skip if (u,v) is actually an edge
-            if edges.iter().any(|&(a, b)| (a == u && b == v) || (a == v && b == u)) {
+            if edges
+                .iter()
+                .any(|&(a, b)| (a == u && b == v) || (a == v && b == u))
+            {
                 continue;
             }
 
@@ -255,10 +251,7 @@ fn main() {
 
         if epoch % 50 == 0 || epoch == epochs - 1 {
             let mean_loss = total_loss / (2 * edges.len()) as f64;
-            let max_norm = emb
-                .iter()
-                .map(|e| e.dot(e).sqrt())
-                .fold(0.0f64, f64::max);
+            let max_norm = emb.iter().map(|e| e.dot(e).sqrt()).fold(0.0f64, f64::max);
             println!("{:>6}  {:>12.6}  {:>12.4}", epoch, mean_loss, max_norm);
         }
     }
@@ -298,10 +291,7 @@ fn main() {
 
     println!("Mean parent-child distance:  {:.4}", mean_pc);
     println!("Mean cross-branch distance:  {:.4}", mean_cross);
-    println!(
-        "Ratio (cross/parent-child):  {:.2}x",
-        mean_cross / mean_pc
-    );
+    println!("Ratio (cross/parent-child):  {:.2}x", mean_cross / mean_pc);
     println!();
 
     // Depth vs norm (deeper nodes should be further from origin)

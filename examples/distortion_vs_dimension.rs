@@ -189,11 +189,7 @@ fn embed_euclidean(
     coords
 }
 
-fn mean_distances_euclidean(
-    coords: &[Array1<f64>],
-    graph_dist: &[usize],
-    n: usize,
-) -> (f64, f64) {
+fn mean_distances_euclidean(coords: &[Array1<f64>], graph_dist: &[usize], n: usize) -> (f64, f64) {
     let mut sum_e = 0.0;
     let mut sum_g = 0.0;
     let mut count = 0u64;
@@ -364,10 +360,7 @@ fn main() {
         "{:>5}  {:>18}  {:>18}  {:>10}",
         "dim", "Euclid. distort.", "Poincare distort.", "Euc/Poinc"
     );
-    println!(
-        "{:-<5}  {:-<18}  {:-<18}  {:-<10}",
-        "", "", "", ""
-    );
+    println!("{:-<5}  {:-<18}  {:-<18}  {:-<10}", "", "", "", "");
 
     for &dim in &dimensions {
         let mut rng_euc = Lcg::new(42 + dim as u64);

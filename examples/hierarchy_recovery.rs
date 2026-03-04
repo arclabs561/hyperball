@@ -432,4 +432,3 @@ fn pearson_correlation(x: &[f64], y: &[f64]) -> f64 {
 
     num / (dx2.sqrt() * dy2.sqrt())
 }
-
