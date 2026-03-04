@@ -1,5 +1,9 @@
 # hyperball
 
+[![crates.io](https://img.shields.io/crates/v/hyperball.svg)](https://crates.io/crates/hyperball)
+[![Documentation](https://docs.rs/hyperball/badge.svg)](https://docs.rs/hyperball)
+[![CI](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml/badge.svg)](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml)
+
 Hyperbolic geometry in Rust: Poincare ball and Lorentz hyperboloid models.
 
 ## Problem
@@ -124,7 +128,7 @@ cargo test -p hyperball
 
 ### Recent Lorentz-space architectures
 
-- van der Klis et al. (2026), "Fast and Geometrically Grounded Lorentz Neural Networks" -- state-of-the-art Lorentz layers.
+- van der Klis et al. (2026), "Fast and Geometrically Grounded Lorentz Neural Networks" -- fast Lorentz layers with geometric grounding.
 - He et al. (2024), "Lorentzian Residual Neural Networks" -- residual connections via Lorentz exp/log.
 - Fan et al. (2024), "Enhancing Hyperbolic KG Embeddings via Lorentz Transformations" (ACL Findings) -- Lorentz boosts for knowledge graphs.
 
