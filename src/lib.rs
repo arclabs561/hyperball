@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Hyperbolic geometry for embedding hierarchical structures.
 //!
 //! Embed trees and hierarchies in low dimensions where Euclidean would need thousands.
