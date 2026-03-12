@@ -82,7 +82,7 @@ Generic over float type via `num_traits::Float`.
 
 ```toml
 [dependencies]
-hyperball = "0.1.0"
+hyperball = "0.1.4"
 ```
 
 ```rust
