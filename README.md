@@ -38,45 +38,11 @@ Tree structure:
    This naturally encodes the tree hierarchy!
 ```
 
-**WordNet-style taxonomy**. Embed a hierarchical vocabulary (animal -> mammal -> dog/cat, etc.) and verify that the hierarchy is recoverable from distances alone:
-
-```bash
-cargo run --example taxonomy_embedding
-```
-
-**Distortion vs. dimension**. Compare embedding quality across dimensions -- Poincare at 5D typically beats Euclidean at 50D for tree metrics:
-
-```bash
-cargo run --example distortion_vs_dimension
-```
-
-**Delta-hyperbolicity**. Measure how tree-like a metric space is using Gromov's four-point condition. Low delta means the space is close to a tree:
-
-```bash
-cargo run --example graph_diagnostics
-```
-
-### All examples
-
-```bash
-cargo run --example poincare_basics           # distance growth near boundary
-cargo run --example tree_embedding            # embed a tree in 2D hyperbolic space
-cargo run --example taxonomy_embedding        # WordNet-style hierarchy
-cargo run --example hierarchy_recovery        # recover tree structure from distances
-cargo run --example graph_diagnostics         # delta-hyperbolicity measurement
-cargo run --example lorentz_basics            # Lorentz hyperboloid model
-cargo run --example distortion_vs_dimension   # Poincare@5D beats Euclidean@50D
-```
+See `examples/` for more: `taxonomy_embedding`, `distortion_vs_dimension`, `graph_diagnostics`, `lorentz_basics`, `hierarchy_recovery`, `poincare_basics`.
 
 ## What it provides
 
-- **`PoincareBall<T>`**: Mobius addition, distance, exp/log maps, parallel transport, projection.
-- **`LorentzModel<T>`**: Minkowski metric, exp/log maps, parallel transport, Euclidean conversions.
-- **Conversions**: Poincare <-> Lorentz round-trip.
-- **Diagnostics**: delta-hyperbolicity and ultrametric violation for tree-likeness detection.
-- **`skel::Manifold` impl**: `PoincareBall<f64>` implements the `Manifold` trait for use with [`flowmatch`](https://github.com/arclabs561/flowmatch) Riemannian ODE integrators.
-
-Generic over float type via `num_traits::Float`.
+`PoincareBall<T>` (Mobius addition, distance, exp/log maps, parallel transport, projection) and `LorentzModel<T>` (Minkowski metric, exp/log maps, parallel transport, Euclidean conversions) with round-trip conversions between models. Diagnostics for delta-hyperbolicity and ultrametric violation. `PoincareBall<f64>` implements the `skel::Manifold` trait. Generic over float type via `num_traits::Float`.
 
 ## Usage
 
@@ -109,37 +75,12 @@ cargo test -p hyperball
 
 ## References
 
-### Foundational
-
-- Nickel & Kiela (2017), "Poincare Embeddings for Learning Hierarchical Representations" -- introduced hyperbolic embeddings for ML.
-- Nickel & Kiela (2018), "Learning Continuous Hierarchies in the Lorentz Model" -- Lorentz model is more stable for optimization.
-- Ganea, Becigneul, Hofmann (2018), "Hyperbolic Neural Networks" -- foundational hyperbolic layers.
-- Chami et al. (2019), "Hyperbolic Graph Convolutional Neural Networks" -- GCNs in hyperbolic space.
-
-### Numerical stability and capacity
-
-- Mishne et al. (2023), "The Numerical Stability of Hyperbolic Representation Learning" (ICML) -- validates Taylor expansion for acosh near 1, Lorentz over Poincare for stability.
-- Kratsios et al. (2023), "Capacity Bounds for Hyperbolic Neural Network Representations of Latent Tree Structures" -- 2D hyperbolic space suffices for tree embedding.
-
-### Training and practice
-
-- Yang et al. (2023), "Hyperbolic Representation Learning: Revisiting and Advancing" (ICML) -- gradient clipping and LR scheduling matter as much as model choice.
-- Sakai & Iiduka (2023), "Convergence of Riemannian SGD on Hadamard Manifolds" -- convergence guarantees for optimization on the hyperboloid.
-
-### Recent Lorentz-space architectures
-
-- van der Klis et al. (2026), "Fast and Geometrically Grounded Lorentz Neural Networks" -- fast Lorentz layers with geometric grounding.
-- He et al. (2024), "Lorentzian Residual Neural Networks" -- residual connections via Lorentz exp/log.
-- Fan et al. (2024), "Enhancing Hyperbolic KG Embeddings via Lorentz Transformations" (ACL Findings) -- Lorentz boosts for knowledge graphs.
-
-### Embeddings and distortion
-
-- van Spengler & Mettes (2025), "Low-distortion and GPU-compatible Tree Embeddings in Hyperbolic Space" -- improved embedding strategies.
-
-### Flow matching and geometry
-
-- Chen & Lipman (2023), "Riemannian Flow Matching on General Geometries" -- foundational for hyperbolic flow matching.
-- Di Giovanni et al. (2022), "Heterogeneous Manifolds for Curvature-Aware Graph Embedding" -- mixed-curvature spaces as future direction.
+- Nickel & Kiela (2017), "Poincare Embeddings for Learning Hierarchical Representations"
+- Nickel & Kiela (2018), "Learning Continuous Hierarchies in the Lorentz Model"
+- Mishne et al. (2023), "The Numerical Stability of Hyperbolic Representation Learning" (ICML)
+- Kratsios et al. (2023), "Capacity Bounds for Hyperbolic Neural Network Representations of Latent Tree Structures"
+- Yang et al. (2023), "Hyperbolic Representation Learning: Revisiting and Advancing" (ICML)
+- Chen & Lipman (2023), "Riemannian Flow Matching on General Geometries"
 
 ## License
 
