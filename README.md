@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/hyperball/badge.svg)](https://docs.rs/hyperball)
 [![CI](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml/badge.svg)](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml)
 
-Hyperbolic geometry in Rust: Poincare ball and Lorentz hyperboloid models.
+Hyperbolic geometry for ML.
 
 ## Problem
 
