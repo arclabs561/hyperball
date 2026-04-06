@@ -254,18 +254,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
 
 [[package]]
-name = "hyp"
-version = "0.1.0"
+name = "hyperball"
+version = "0.1.5"
 dependencies = [
  "approx",
  "criterion",
+ "innr",
  "ndarray",
  "num-traits",
  "proptest",
  "rand",
  "rand_chacha",
+ "skel",
  "thiserror",
 ]
+
+[[package]]
+name = "innr"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f75d0b29074c87add080dab7566c3a11854cd90a315af73fa5537b4643234142"
 
 [[package]]
 name = "is-terminal"
@@ -663,6 +671,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "skel"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1593a6c4eaefa4cd49d0bb427815b9fadb5b9345bcd65bfe1e23fb5987856c20"
+dependencies = [
+ "ndarray",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -868,81 +885,5 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac93432f5b761b22864c774aac244fa5c0fd877678a4c37ebf6cf42208f9c9ec"
 
 [[patch.unused]]
-name = "ans"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "axum-mcp"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "axum-mcp-macros"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "clump"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "cnk"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "fynch"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "innr"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "jin"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "knit"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "kuji"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "lapl"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "logp"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "pare"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "rkhs"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "rmt"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "sbits"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "skel"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "slabs"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "strata"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "wass"
-version = "0.1.0"
+name = "textprep"
+version = "0.1.5"
