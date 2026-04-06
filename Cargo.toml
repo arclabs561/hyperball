@@ -11,6 +11,8 @@ documentation = "https://docs.rs/hyperball"
 keywords = ["hyperbolic", "poincare", "lorentz", "embeddings", "geometry"]
 categories = ["algorithms", "science", "mathematics"]
 
+[workspace]
+
 [dependencies]
 skel = "0.1.1"
 ndarray = { version = "0.16", optional = true }
