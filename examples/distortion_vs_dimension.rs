@@ -167,14 +167,14 @@ fn embed_euclidean(
     let n = tree.num_nodes;
     let mut coords: Vec<Array1<f64>> = vec![Array1::zeros(dim); n];
 
-    for i in 1..n {
+    for (i, coord) in coords.iter_mut().enumerate().skip(1) {
         let path = root_path(i);
         let mut pos = direction_from_path(&path, dim);
         // Tiny noise to break exact ties
         for d in 0..dim {
             pos[d] += rng.next_f64_signed() * 1e-6;
         }
-        coords[i] = pos;
+        *coord = pos;
     }
 
     // Rescale so mean embedding distance matches mean graph distance
@@ -254,14 +254,14 @@ fn poincare_embed_with_scale(
     let max_d = tree.max_depth as f64;
     let mut coords: Vec<Array1<f64>> = vec![Array1::zeros(dim); n];
 
-    for i in 1..n {
+    for (i, coord) in coords.iter_mut().enumerate().skip(1) {
         let path = root_path(i);
         let depth = path.len() as f64;
 
         let mut dir = direction_from_path(&path, dim);
         let norm = dir.dot(&dir).sqrt();
         if norm > 1e-12 {
-            dir = dir / norm;
+            dir /= norm;
         }
 
         // Radius grows with depth; scale controls overall magnitude
@@ -273,7 +273,7 @@ fn poincare_embed_with_scale(
         }
 
         let point = ball.exp_map_zero(&tangent.view());
-        coords[i] = ball.project(&point.view());
+        *coord = ball.project(&point.view());
     }
 
     coords
