@@ -18,7 +18,7 @@ skel = "0.1.1"
 ndarray = { version = "0.16", optional = true }
 num-traits = "0.2"
 thiserror = "2.0"
-innr = { version = "0.1.8", optional = true }
+innr = { version = "0.2", optional = true }
 
 [dev-dependencies]
 approx = "0.5"
