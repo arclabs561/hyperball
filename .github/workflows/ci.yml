@@ -33,6 +33,12 @@ jobs:
       - name: Property tests
         run: cargo test --test property_tests --all-features
 
+      - name: Semver check
+        if: github.event_name == 'pull_request'
+        run: |
+          cargo install cargo-semver-checks --locked || true
+          cargo semver-checks
+
   msrv:
     runs-on: ubuntu-latest
     steps:
