@@ -2,7 +2,7 @@
 # https://github.com/repository-settings/app
 
 repository:
-  description: "Hyperbolic geometry for ML: Poincare ball, Lorentz model, hyperbolic embeddings"
+  description: "Hyperbolic geometry primitives for embeddings"
   homepage: "https://docs.rs/hyp"
   private: false
   has_issues: true
