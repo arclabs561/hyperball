@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/hyperball/badge.svg)](https://docs.rs/hyperball)
 [![CI](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml/badge.svg)](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml)
 
-Hyperbolic geometry primitives in Rust: Poincare ball, Lorentz model,
+Hyperbolic geometry primitives: Poincare ball, Lorentz model,
 and Mobius operations.
 
 ## Problem
