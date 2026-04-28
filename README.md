@@ -49,7 +49,7 @@ See `examples/` for more: `taxonomy_embedding`, `distortion_vs_dimension`, `grap
 
 ```toml
 [dependencies]
-hyperball = "0.1.4"
+hyperball = "0.1"
 ```
 
 ```rust
