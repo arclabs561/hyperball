@@ -1,3 +1,4 @@
 /target
 .cursor/
 Cargo.lock
+/evals/arch/
