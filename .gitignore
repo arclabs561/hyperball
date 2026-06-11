@@ -2,3 +2,4 @@
 .cursor/
 Cargo.lock
 /evals/arch/
+/semver-checks/
