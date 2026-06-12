@@ -46,7 +46,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.75.0
       - uses: Swatinem/rust-cache@v2
 
-      # MSRV check excludes `simd` feature (innr requires Rust 1.80+)
       - name: Check MSRV
         run: |
           rm -f Cargo.lock  # v4 lock file requires Cargo 1.83+
