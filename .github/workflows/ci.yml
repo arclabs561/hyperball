@@ -29,6 +29,8 @@ jobs:
 
       - name: Test
         run: cargo test --all-features
+      - name: run example assertions
+        run: cargo run --example graph_diagnostics
 
       - name: Property tests
         run: cargo test --test property_tests --all-features
