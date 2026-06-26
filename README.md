@@ -39,7 +39,13 @@ Tree structure:
    This naturally encodes the tree hierarchy!
 ```
 
-See `examples/` for more: `taxonomy_embedding`, `distortion_vs_dimension`, `graph_diagnostics`, `lorentz_basics`, `hierarchy_recovery`, `poincare_basics`.
+More in [`examples/`](examples/):
+
+- `taxonomy_embedding` embeds a real hierarchical taxonomy in the Poincare ball, the use case hyperbolic embeddings were introduced for.
+- `hierarchy_recovery` shows hyperbolic space recovering tree structure that Euclidean embeddings lose.
+- `distortion_vs_dimension` reproduces the Nickel & Kiela (2017) result: hyperbolic space embeds trees with far less distortion than Euclidean at equal dimension.
+- `graph_diagnostics` measures how tree-like a graph's distance matrix is, the check for whether hyperbolic embedding will pay off.
+- `poincare_basics` and `lorentz_basics` walk through the two equivalent models of hyperbolic space (ball and hyperboloid) side by side.
 
 ## What it provides
 
