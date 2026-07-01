@@ -52,8 +52,8 @@ Trees also grow exponentially: a binary tree at depth d has 2^d leaves.
 |-----------|----------|-------|-----|
 | Trees (strict) | Hyperbolic | `hyp` | Exponential volume matches tree growth |
 | DAGs/Lattices | Boxes | `subsume` | Containment = entailment |
-| General graphs | Euclidean | `lattix-kge` | TransE, RotatE, point embeddings |
-| Dense vectors | Euclidean | `jin` | HNSW, IVF-PQ, standard ANN |
+| Knowledge graphs | Euclidean | `tranz` | TransE, RotatE, point embeddings |
+| Dense vectors | Euclidean | `vicinity` | HNSW, IVF-PQ, standard ANN |
 
 ## When to Use Hyperbolic
 
@@ -64,9 +64,9 @@ Is your data a strict tree?
 Is your data a DAG with multiple parents?
   └─> subsume (box embeddings)
 
-Is your data a general graph?
-  └─> lattix-kge (Euclidean KGE)
+Is your data a knowledge graph for link prediction?
+  └─> tranz (Euclidean KGE)
 
 Just need nearest neighbor search?
-  └─> jin (HNSW)
+  └─> vicinity (HNSW)
 ```

@@ -74,7 +74,7 @@
 //! routing succeeds. This connects to HNSW's small-world navigation: graphs
 //! with low effective dimension are easier to search.
 //!
-//! See `jin::lid` for LID estimation utilities.
+//! See `vicinity` for Euclidean ANN and LID estimation utilities.
 //!
 //! # References
 //!

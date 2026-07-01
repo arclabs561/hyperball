@@ -14,8 +14,8 @@
 //! |-----------------|-------------|-------------|-------------------------------|
 //! | Trees           | Hyperbolic  | hyp         | Exponential volume = trees    |
 //! | DAGs/Lattices   | Boxes       | subsume     | Containment = entailment      |
-//! | General graphs  | Euclidean   | grafene-kge | Dense vectors, TransE/RotatE  |
-//! | Dense vectors   | Euclidean   | jin         | HNSW, IVF-PQ, standard ANN    |
+//! | Knowledge graphs | Euclidean  | tranz       | Point embeddings, TransE/RotatE |
+//! | Dense vectors   | Euclidean   | vicinity    | HNSW, IVF-PQ, standard ANN    |
 //!
 //! This example shows why 2D hyperbolic space can embed trees that would
 //! require O(depth) dimensions in Euclidean space.
