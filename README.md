@@ -2,16 +2,16 @@
 
 [![crates.io](https://img.shields.io/crates/v/hyperball.svg)](https://crates.io/crates/hyperball)
 [![Documentation](https://docs.rs/hyperball/badge.svg)](https://docs.rs/hyperball)
-[![CI](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml/badge.svg)](https://github.com/arclabs561/hyperball/actions/workflows/ci.yml)
 
-Hyperbolic geometry primitives: Poincare ball, Lorentz model,
-and Mobius operations.
+Hyperbolic geometry primitives for embeddings.
 
 ## Problem
 
 Tree-like structures (taxonomies, file systems, parse trees) have exponentially many leaves but shallow depth. Euclidean space cannot embed them faithfully in low dimensions: a binary tree of depth 10 has 1024 leaves and needs roughly that many Euclidean dimensions. Hyperbolic space has exponential volume growth, so the same tree fits in 2D with bounded distortion.
 
-This library provides the core operations (distance, exp/log maps, parallel transport) for both the Poincare ball and Lorentz hyperboloid models, plus diagnostics for measuring how tree-like a dataset is.
+`hyperball` provides distance, exp/log maps, parallel transport, and model
+conversion for the Poincare ball and Lorentz hyperboloid models, plus
+diagnostics for measuring how tree-like a dataset is.
 
 ## Examples
 

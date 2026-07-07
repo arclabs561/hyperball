@@ -3,7 +3,7 @@
 
 repository:
   description: "Hyperbolic geometry primitives for embeddings"
-  homepage: "https://docs.rs/hyp"
+  homepage: "https://docs.rs/hyperball"
   private: false
   has_issues: true
   has_wiki: false
