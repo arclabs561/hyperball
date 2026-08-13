@@ -36,15 +36,15 @@ Tree structure:
    d(A1,B1)   |     0.600 |      2.366 |   3.94x
 
    Notice: hyperbolic distances grow faster for points near boundary.
-   This naturally encodes the tree hierarchy!
+   This toy placement illustrates radial separation by depth.
 ```
 
 More in [`examples/`](examples/):
 
-- `taxonomy_embedding` embeds a real hierarchical taxonomy in the Poincare ball, the use case hyperbolic embeddings were introduced for.
-- `hierarchy_recovery` shows hyperbolic space recovering tree structure that Euclidean embeddings lose.
-- `distortion_vs_dimension` reproduces the Nickel & Kiela (2017) result: hyperbolic space embeds trees with far less distortion than Euclidean at equal dimension.
-- `graph_diagnostics` measures how tree-like a graph's distance matrix is, the check for whether hyperbolic embedding will pay off.
+- `taxonomy_embedding` evaluates hand-crafted Poincare coordinates for a small, WordNet-inspired taxonomy.
+- `hierarchy_recovery` examines how a synthetic hierarchy appears in hyperbolic and Euclidean distance summaries.
+- `distortion_vs_dimension` compares one deterministic tree construction across dimensions, inspired by work on Poincare embeddings.
+- `graph_diagnostics` reports delta-hyperbolicity and ultrametric violation for small graph distance matrices. These are descriptive signals, not a prediction of embedding quality.
 - `poincare_basics` and `lorentz_basics` walk through the two equivalent models of hyperbolic space (ball and hyperboloid) side by side.
 
 ## What it provides
@@ -78,7 +78,7 @@ let x_back = ball.exp_map_zero(&v.view()); // round-trip
 cargo test -p hyperball
 ```
 
-73 tests: unit tests, property-based tests (proptest), and numerical stability tests covering Mobius axioms (inverse, left cancellation), metric axioms (symmetry, triangle inequality, boundary growth), exp/log round-trips, parallel transport norm preservation, cross-model isometry, and Lorentz tangent space operations.
+The suite includes unit tests, property-based tests (proptest), and numerical stability tests covering Mobius axioms (inverse, left cancellation), metric axioms (symmetry, triangle inequality, boundary growth), exp/log round-trips, parallel transport norm preservation, cross-model isometry, and Lorentz tangent space operations.
 
 ## References
 

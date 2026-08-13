@@ -1,11 +1,12 @@
 //! Distortion vs. Dimension: Euclidean vs. Poincare
 //!
-//! Demonstrates the key insight from Nickel & Kiela (2017): hyperbolic space
-//! can represent hierarchies in far fewer dimensions than Euclidean space.
+//! Compares Euclidean and Poincare distances for one deterministic tree
+//! construction, inspired by Nickel & Kiela (2017).
 //!
 //! We generate a complete binary tree, embed it in both Euclidean and Poincare
 //! spaces at various dimensions, and compare how well pairwise graph distances
-//! are preserved. The punchline: Poincare@5 can match or beat Euclidean@50.
+//! are preserved. The reported values describe this construction and are not a
+//! reproduction of the paper's experiments.
 //!
 //! For improved embedding strategies (GPU-compatible, lower distortion
 //! bounds), see van Spengler & Mettes (2025), "Low-distortion and

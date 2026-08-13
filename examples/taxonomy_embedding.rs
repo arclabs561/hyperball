@@ -1,7 +1,7 @@
 //! Taxonomy Embedding in Hyperbolic Space
 //!
-//! Demonstrates Poincare embeddings on a real hierarchical taxonomy.
-//! Uses evaluation metrics from Nickel & Kiela (2017) "Poincare Embeddings".
+//! Evaluates hand-crafted Poincare coordinates on a small synthetic taxonomy.
+//! Uses metrics described by Nickel & Kiela (2017), "Poincare Embeddings."
 //!
 //! # Why Hyperbolic Space for Hierarchies?
 //!
@@ -22,11 +22,12 @@
 //! 2. **Mean Average Precision (MAP)**: Average precision at each recall level
 //!    Higher is better. Perfect = 1.0.
 //!
-//! 3. **Reconstruction Accuracy**: Can we recover parent-child edges from distances?
+//! 3. **Reconstruction Accuracy**: How often do distances from these
+//!    hand-crafted coordinates retrieve a parent-child edge?
 //!
 //! # Dataset
 //!
-//! Animal taxonomy (subset of WordNet mammal.n.01 hierarchy):
+//! A WordNet-inspired animal taxonomy (not loaded from WordNet):
 //! ```text
 //!                    animal
 //!                   /      \

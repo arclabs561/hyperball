@@ -1,7 +1,7 @@
-//! Hyperbolic Hierarchy Recovery
+//! Hierarchy Distance Analysis (`hierarchy_recovery` example)
 //!
-//! Demonstrates that hyperbolic space naturally encodes tree-like hierarchies
-//! with much lower distortion than Euclidean space.
+//! Examines a hand-crafted hyperbolic embedding of a small synthetic hierarchy
+//! alongside Euclidean distance summaries.
 //!
 //! Key insight: In hyperbolic space, volume grows exponentially with radius,
 //! matching the exponential growth of nodes in a tree.

@@ -15,12 +15,12 @@ cargo run --example poincare_basics --release
 cargo run --example tree_embedding --release
 ```
 
-## Real Hierarchies
+## Synthetic Hierarchies
 
 | Example | Covers |
 |---------|--------|
-| `taxonomy_embedding` | Embed WordNet-style taxonomy, evaluate with MAP |
-| `hierarchy_recovery` | Recover parent-child structure from distances |
+| `taxonomy_embedding` | Evaluate hand-crafted coordinates for a WordNet-inspired taxonomy |
+| `hierarchy_recovery` | Inspect hierarchy-related distance summaries |
 | `poincare_sgd` | Learn Poincare embeddings via Riemannian SGD on a synthetic tree |
 | `lorentz_sgd` | Learn Lorentz embeddings via Riemannian SGD on the same synthetic tree |
 

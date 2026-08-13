@@ -1,8 +1,7 @@
 //! Graph → distance matrix → “tree-likeness” diagnostics.
 //!
-//! This is a small-n diagnostic harness, meant to answer:
-//! - is the *metric* induced by shortest-path distances plausibly tree-like?
-//! - if it’s tree-like, hyperbolic embeddings are often a good geometric prior.
+//! This small-n harness describes how closely a shortest-path metric resembles
+//! tree or ultrametric structure. It does not predict embedding quality.
 //!
 //! Two checks:
 //! - **δ-hyperbolicity** (4-point condition): trees have δ = 0.
