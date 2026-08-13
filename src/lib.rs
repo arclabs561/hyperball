@@ -172,54 +172,29 @@ impl Manifold for PoincareBall<f64> {
         y: &ArrayView1<f64>,
         v: &ArrayView1<f64>,
     ) -> Array1<f64> {
-        // Parallel transport along the unique geodesic from x to y, implemented by integrating
-        // the parallel-transport ODE induced by the Levi-Civita connection of the conformal metric
-        // g_x = λ(x)^2 I (λ(x) = 2 / (1 - c ||x||^2)).
-        //
-        // This is more faithful than the older "λ-ratio scaling" approximation: it preserves both
-        // length and direction (up to numeric error) by following the connection along the geodesic.
+        // Closed-form transport along the unique geodesic:
+        // P_{x→y}(v) = (λ_x / λ_y) gyr[y, -x](v).
+        // Expanding the gyration avoids iterative integration and intermediate
+        // Möbius-addition allocations.
+        let c = self.c;
+        let c2 = c * c;
+        let xx = x.dot(x);
+        let yy = y.dot(y);
+        let xy = x.dot(y);
+        let xv = x.dot(v);
+        let yv = y.dot(v);
 
-        let n_steps: usize = 128;
-        let dt: f64 = 1.0 / (n_steps as f64);
+        // Algebraically this is 1 - 2c<x,y> + c²||x||²||y||². The
+        // sum-of-squares form avoids cancellation for nearly aligned points.
+        let gram = (xx * yy - xy * xy).max(0.0);
+        let one_minus_cxy = 1.0 - c * xy;
+        let denominator = one_minus_cxy * one_minus_cxy + c2 * gram;
 
-        let x0 = x.to_owned();
-        let x1 = y.to_owned();
+        let a = -c2 * xx * yv - c * xv + 2.0 * c2 * xy * xv;
+        let b = c2 * yy * xv - c * yv;
+        let gyration = v + &(y * (2.0 * a / denominator)) - &(x * (2.0 * b / denominator));
 
-        if (&x0 - &x1).dot(&(&x0 - &x1)).sqrt() < 1e-12 {
-            return v.to_owned();
-        }
-
-        let geodesic_point = |t: f64| -> Array1<f64> {
-            let neg_x0 = x0.mapv(|v| -v);
-            let delta = self.mobius_add(&neg_x0.view(), &x1.view());
-            let log0 = self.log_map_zero(&delta.view());
-            let scaled = log0.mapv(|u| u * t);
-            let delta_t = self.exp_map_zero(&scaled.view());
-            let xt = self.mobius_add(&x0.view(), &delta_t.view());
-            self.project(&xt.view())
-        };
-
-        let mut v_cur = v.to_owned();
-
-        for i in 0..n_steps {
-            let t = (i as f64) * dt;
-            let xt = geodesic_point(t);
-            let xt_next = geodesic_point(t + dt);
-            let xdot = (&xt_next - &xt) / dt;
-
-            let c = self.c;
-            let lambda = 2.0 / (1.0 - c * xt.dot(&xt));
-
-            // (Γ(xt)(xdot, v))^k = c*λ * ( xdot^k (xt·v) + (xt·xdot) v^k - xt^k (xdot·v) )
-            let s1 = xt.dot(&v_cur);
-            let s2 = xt.dot(&xdot);
-            let s3 = xdot.dot(&v_cur);
-
-            let dv = -c * lambda * (&xdot * s1 + &v_cur * s2 - &xt * s3);
-            v_cur = v_cur + dv * dt;
-        }
-
-        v_cur
+        gyration * ((1.0 - c * yy) / (1.0 - c * xx))
     }
 }
 
@@ -666,7 +641,7 @@ mod tests {
         let norm2_y = ly * ly * pt.dot(&pt);
 
         let rel = (norm2_x - norm2_y).abs() / norm2_x.max(1e-12);
-        assert!(rel < 5e-4, "rel={}", rel);
+        assert!(rel < 1e-12, "rel={}", rel);
     }
 
     #[test]
@@ -683,6 +658,131 @@ mod tests {
         let expected = v.mapv(|t| t * (l0 / lx));
 
         let err = (&pt - &expected).mapv(|t| t.abs()).sum();
-        assert!(err < 5e-4, "err={}", err);
+        assert!(err < 1e-12, "err={}", err);
+    }
+
+    #[test]
+    fn parallel_transport_preserves_metric_inner_products() {
+        let ball = PoincareBall::new(1.0);
+        let x = array![0.2, -0.1, 0.05];
+        let y = array![-0.3, 0.2, 0.1];
+        let u = array![0.4, 0.1, -0.2];
+        let v = array![-0.15, 0.3, 0.25];
+
+        let transported_u = ball.parallel_transport(&x.view(), &y.view(), &u.view());
+        let transported_v = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+        let inner_at_x = lambda(ball.c, &x.view()).powi(2) * u.dot(&v);
+        let inner_at_y = lambda(ball.c, &y.view()).powi(2) * transported_u.dot(&transported_v);
+
+        assert!((inner_at_x - inner_at_y).abs() < 1e-12);
+    }
+
+    #[test]
+    fn parallel_transport_round_trips_along_reversed_geodesic() {
+        let ball = PoincareBall::new(2.5);
+        let x = array![0.15, -0.08, 0.04];
+        let y = array![-0.22, 0.1, 0.07];
+        let v = array![0.4, -0.2, 0.1];
+
+        let at_y = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+        let at_x = ball.parallel_transport(&y.view(), &x.view(), &at_y.view());
+        let err = (&at_x - &v).mapv(f64::abs).sum();
+
+        assert!(err < 1e-12, "err={err}");
+    }
+
+    #[test]
+    fn parallel_transport_matches_mobius_gyration_definition() {
+        let ball = PoincareBall::new(1.7);
+        let x = array![0.2, -0.1, 0.05];
+        let y = array![-0.3, 0.2, 0.1];
+        let v = array![0.4, 0.1, -0.2];
+
+        // gyr[u, w](v) = -(u ⊕ w) ⊕ (u ⊕ (w ⊕ v)).
+        let neg_x = -&x;
+        let y_plus_neg_x = ball.mobius_add(&y.view(), &neg_x.view());
+        let neg_y_plus_neg_x = -y_plus_neg_x;
+        let neg_x_plus_v = ball.mobius_add(&neg_x.view(), &v.view());
+        let associated = ball.mobius_add(&y.view(), &neg_x_plus_v.view());
+        let gyration = ball.mobius_add(&neg_y_plus_neg_x.view(), &associated.view());
+        let expected = gyration * (lambda(ball.c, &x.view()) / lambda(ball.c, &y.view()));
+        let transported = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+        let err = (&transported - &expected).mapv(f64::abs).sum();
+
+        assert!(err < 1e-12, "err={err}");
+    }
+
+    #[test]
+    fn parallel_transport_matches_lorentz_model() {
+        use crate::lorentz::conversions::poincare_to_lorentz;
+
+        fn poincare_tangent_to_lorentz(x: &ArrayView1<f64>, v: &ArrayView1<f64>) -> Array1<f64> {
+            let q = 1.0 - x.dot(x);
+            let xv = x.dot(v);
+            let mut result = Array1::zeros(x.len() + 1);
+            result[0] = 4.0 * xv / (q * q);
+            for i in 0..x.len() {
+                result[i + 1] = 2.0 * v[i] / q + 4.0 * x[i] * xv / (q * q);
+            }
+            result
+        }
+
+        fn lorentz_tangent_to_poincare(
+            y_lorentz: &ArrayView1<f64>,
+            v_lorentz: &ArrayView1<f64>,
+        ) -> Array1<f64> {
+            let denominator = y_lorentz[0] + 1.0;
+            let mut result = Array1::zeros(y_lorentz.len() - 1);
+            for i in 0..result.len() {
+                result[i] = (v_lorentz[i + 1] * denominator - y_lorentz[i + 1] * v_lorentz[0])
+                    / denominator.powi(2);
+            }
+            result
+        }
+
+        fn lorentz_parallel_transport(
+            lorentz: &LorentzModel<f64>,
+            x: &ArrayView1<f64>,
+            y: &ArrayView1<f64>,
+            v: &ArrayView1<f64>,
+        ) -> Array1<f64> {
+            let coefficient = lorentz.minkowski_dot(y, v) / (1.0 - lorentz.minkowski_dot(x, y));
+            v + &((x + y) * coefficient)
+        }
+
+        let ball = PoincareBall::new(1.0);
+        let lorentz = LorentzModel::new(1.0);
+        let x = array![0.2, -0.1, 0.05];
+        let y = array![-0.3, 0.2, 0.1];
+        let v = array![0.4, 0.1, -0.2];
+        let x_lorentz = poincare_to_lorentz(&ball, &x.view());
+        let y_lorentz = poincare_to_lorentz(&ball, &y.view());
+        let v_lorentz = poincare_tangent_to_lorentz(&x.view(), &v.view());
+        let transported_lorentz = lorentz_parallel_transport(
+            &lorentz,
+            &x_lorentz.view(),
+            &y_lorentz.view(),
+            &v_lorentz.view(),
+        );
+        let expected = lorentz_tangent_to_poincare(&y_lorentz.view(), &transported_lorentz.view());
+        let transported = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+        let err = (&transported - &expected).mapv(f64::abs).sum();
+
+        assert!(err < 1e-12, "err={err}");
+    }
+
+    #[test]
+    fn parallel_transport_near_boundary_is_finite_and_isometric() {
+        let ball = PoincareBall::new(1.0);
+        let x = array![0.99, 0.0];
+        let y = array![0.0, -0.99];
+        let v = array![0.3, 0.7];
+        let transported = ball.parallel_transport(&x.view(), &y.view(), &v.view());
+
+        assert!(transported.iter().all(|value| value.is_finite()));
+        let norm_at_x = lambda(ball.c, &x.view()).powi(2) * v.dot(&v);
+        let norm_at_y = lambda(ball.c, &y.view()).powi(2) * transported.dot(&transported);
+        let relative_error = (norm_at_x - norm_at_y).abs() / norm_at_x;
+        assert!(relative_error < 1e-12, "relative_error={relative_error}");
     }
 }

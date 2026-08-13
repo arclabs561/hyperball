@@ -7,8 +7,11 @@
 //! - Precision degradation near boundary
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hyperball::PoincareBall as LibraryPoincareBall;
+use ndarray::Array1;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use skel::Manifold;
 
 // Poincare Ball operations (standalone for benchmarking)
 struct PoincareBall {
@@ -138,6 +141,15 @@ fn random_point_in_ball(dim: usize, max_norm: f64, rng: &mut StdRng) -> Vec<f64>
     v
 }
 
+fn random_point_at_radius(dim: usize, radius: f64, rng: &mut StdRng) -> Vec<f64> {
+    let mut v: Vec<f64> = (0..dim).map(|_| rng.random::<f64>() * 2.0 - 1.0).collect();
+    let norm: f64 = v.iter().map(|x| x * x).sum::<f64>().sqrt();
+    for x in &mut v {
+        *x *= radius / norm;
+    }
+    v
+}
+
 fn random_lorentz_point(dim: usize, rng: &mut StdRng) -> Vec<f64> {
     let lorentz = LorentzModel::new(1.0);
     let euclidean: Vec<f64> = (0..dim).map(|_| rng.random::<f64>() * 2.0 - 1.0).collect();
@@ -202,6 +214,34 @@ fn bench_mobius_add(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("dim", dim), &dim, |b, _| {
             b.iter(|| ball.mobius_add(black_box(&x), black_box(&y)))
         });
+    }
+
+    group.finish();
+}
+
+/// Benchmark the library's closed-form Poincaré parallel transport.
+fn bench_poincare_parallel_transport(c: &mut Criterion) {
+    let mut group = c.benchmark_group("poincare_parallel_transport");
+    let ball = LibraryPoincareBall::new(1.0);
+    let mut rng = StdRng::seed_from_u64(42);
+
+    for dim in [2, 32, 256] {
+        for (regime, radius) in [("interior", 0.75), ("near_boundary", 0.99)] {
+            let x = Array1::from_vec(random_point_at_radius(dim, radius, &mut rng));
+            let y = Array1::from_vec(random_point_at_radius(dim, radius, &mut rng));
+            let v = Array1::from_vec((0..dim).map(|_| rng.random::<f64>() * 2.0 - 1.0).collect());
+
+            group.throughput(Throughput::Elements(dim as u64));
+            group.bench_with_input(BenchmarkId::new(regime, dim), &dim, |b, _| {
+                b.iter(|| {
+                    ball.parallel_transport(
+                        black_box(&x.view()),
+                        black_box(&y.view()),
+                        black_box(&v.view()),
+                    )
+                })
+            });
+        }
     }
 
     group.finish();
@@ -375,6 +415,7 @@ criterion_group!(
     bench_poincare_distance,
     bench_lorentz_distance,
     bench_mobius_add,
+    bench_poincare_parallel_transport,
     bench_exp_map,
     bench_batch_distances,
     bench_precision_vs_radius,

@@ -51,20 +51,6 @@ fn poincare_point(dim: usize) -> impl Strategy<Value = Array1<f64>> {
     })
 }
 
-/// Generate a Poincaré point with a conservative radius bound.
-/// This is the regime we care about for stable step-based integrators (small dt).
-fn poincare_point_safe(dim: usize) -> impl Strategy<Value = Array1<f64>> {
-    prop::collection::vec(-0.6f64..0.6f64, dim).prop_map(|v: Vec<f64>| {
-        let arr = Array1::from_vec(v);
-        let norm = arr.dot(&arr).sqrt();
-        if norm > 0.6 {
-            arr * (0.6 / norm)
-        } else {
-            arr
-        }
-    })
-}
-
 /// Generate a point very close to the Poincare ball boundary.
 /// Tests numerical stability in extreme regions.
 fn poincare_point_near_boundary(dim: usize) -> impl Strategy<Value = Array1<f64>> {
@@ -392,8 +378,8 @@ proptest! {
 
     #[test]
     fn poincare_parallel_transport_preserves_metric_norm(
-        x in poincare_point_safe(3),
-        y in poincare_point_safe(3),
+        x in poincare_point(3),
+        y in poincare_point(3),
         v in prop::collection::vec(-0.2f64..0.2f64, 3usize),
     ) {
         let ball = PoincareBall::<f64>::new(1.0);
@@ -407,8 +393,7 @@ proptest! {
         let norm2_y = lambda_y * lambda_y * pt.dot(&pt);
 
         let rel = (norm2_x - norm2_y).abs() / norm2_x.max(1e-12);
-        // Loose tolerance: transport is numerically integrated.
-        prop_assert!(rel < 3e-2, "rel={rel}");
+        prop_assert!(rel < 1e-10, "rel={rel}");
     }
 }
 
