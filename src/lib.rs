@@ -253,8 +253,12 @@ impl<T> PoincareBall<T>
 where
     T: Float + FromPrimitive + Zero + ndarray::ScalarOperand + ndarray::LinalgScalar,
 {
-    /// Create a Poincare ball model with curvature `c`.
+    /// Create a Poincare ball model with finite, positive curvature `c`.
     pub fn new(c: T) -> Self {
+        assert!(
+            c.is_finite() && c > T::zero(),
+            "curvature must be finite and positive"
+        );
         Self { c }
     }
 
@@ -352,8 +356,8 @@ where
     pub fn project(&self, x: &ArrayView1<T>) -> Array1<T> {
         let norm = x.dot(x).sqrt();
         let one = T::one();
-        let epsilon = T::from_f64(1e-5).unwrap();
-        let max_norm = (one / self.c).sqrt() - epsilon;
+        let radius = (one / self.c).sqrt();
+        let max_norm = radius * (one - T::epsilon().sqrt());
 
         if norm > max_norm {
             x * (max_norm / norm)
@@ -371,6 +375,29 @@ mod tests {
     use skel::Manifold;
 
     const EPS: f64 = 1e-10;
+
+    #[test]
+    fn test_rejects_invalid_curvature() {
+        for c in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            assert!(std::panic::catch_unwind(|| PoincareBall::new(c)).is_err());
+        }
+    }
+
+    #[test]
+    fn test_projection_is_scale_relative() {
+        for c in [1e-12_f64, 1e-6, 1.0, 1e6, 1e12] {
+            let ball = PoincareBall::new(c);
+            let x = array![2.0 / c.sqrt(), -3.0 / c.sqrt()];
+            let projected = ball.project(&x.view());
+
+            assert!(projected.iter().all(|value| value.is_finite()));
+            assert!(ball.is_in_ball(&projected.view()), "c={c}, p={projected:?}");
+
+            let scale = projected[0] / x[0];
+            assert!(scale >= 0.0, "c={c}, scale={scale}");
+            assert!((projected[1] - x[1] * scale).abs() <= 1e-12 / c.sqrt());
+        }
+    }
 
     #[test]
     fn test_distance_self_is_zero() {

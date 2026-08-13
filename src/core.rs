@@ -28,9 +28,12 @@ impl<T> PoincareBallCore<T>
 where
     T: Float + FromPrimitive,
 {
-    /// Create a Poincare ball with curvature `c` (must be positive).
+    /// Create a Poincare ball with finite, positive curvature `c`.
     pub fn new(c: T) -> Self {
-        assert!(c > T::zero(), "curvature must be positive");
+        assert!(
+            c.is_finite() && c > T::zero(),
+            "curvature must be finite and positive"
+        );
         Self { c }
     }
 
@@ -130,8 +133,8 @@ where
     pub fn project(&self, x: &[T]) -> Vec<T> {
         let norm = dot(x, x).sqrt();
         let one = T::one();
-        let eps = T::from_f64(1e-5).unwrap();
-        let max_norm = (one / self.c).sqrt() - eps;
+        let radius = (one / self.c).sqrt();
+        let max_norm = radius * (one - T::epsilon().sqrt());
 
         if norm > max_norm {
             let scale = max_norm / norm;
@@ -500,6 +503,43 @@ mod tests {
         let v2 = ball.log_map_zero(&y);
         for i in 0..v.len() {
             assert!(approx_eq(v2[i], v[i], 1e-7));
+        }
+    }
+
+    #[test]
+    fn poincare_core_rejects_invalid_curvature() {
+        for c in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            assert!(std::panic::catch_unwind(|| PoincareBallCore::new(c)).is_err());
+        }
+    }
+
+    #[test]
+    fn poincare_core_projection_is_scale_relative() {
+        for c in [1e-12, 1e-6, 1.0, 1e6, 1e12] {
+            let ball = PoincareBallCore::new(c);
+            let x = [2.0 / c.sqrt(), -3.0 / c.sqrt()];
+            let projected = ball.project(&x);
+
+            assert!(projected.iter().all(|value| value.is_finite()));
+            assert!(ball.is_in_ball(&projected), "c={c}, p={projected:?}");
+
+            let scale = projected[0] / x[0];
+            assert!(scale >= 0.0, "c={c}, scale={scale}");
+            assert!(approx_eq(projected[1], x[1] * scale, 1e-12 / c.sqrt()));
+            assert_eq!(ball.project(&[0.0, 0.0]), [0.0, 0.0]);
+        }
+
+        for c in [1e-12_f32, 1e-6, 1.0, 1e6, 1e12] {
+            let ball = PoincareBallCore::new(c);
+            let x = [2.0 / c.sqrt(), -3.0 / c.sqrt()];
+            let projected = ball.project(&x);
+
+            assert!(projected.iter().all(|value| value.is_finite()));
+            assert!(ball.is_in_ball(&projected), "c={c}, p={projected:?}");
+
+            let scale = projected[0] / x[0];
+            assert!(scale >= 0.0, "c={c}, scale={scale}");
+            assert!((projected[1] - x[1] * scale).abs() <= 1e-5 / c.sqrt());
         }
     }
 
