@@ -200,7 +200,7 @@ where
         let inner_xy = self.minkowski_dot(x, y);
         let inner_vy = self.minkowski_dot(v, y);
 
-        // PT_{x->y}(v) = v - c * inner_vy / (1 - c * inner_xy) * (x + y)
+        // PT_{x->y}(v) = v + c * inner_vy / (1 - c * inner_xy) * (x + y)
         let one = T::one();
         let denom = one - self.c * inner_xy;
         let epsilon = T::from_f64(1e-15).unwrap();
@@ -211,7 +211,7 @@ where
 
         let coeff = self.c * inner_vy / denom;
         let sum_xy = x.to_owned() + y;
-        v.to_owned() - sum_xy.mapv(|val| val * coeff)
+        v.to_owned() + sum_xy.mapv(|val| val * coeff)
     }
 
     /// Origin of the hyperboloid: (1/sqrt(c), 0, 0, ..., 0)
@@ -278,6 +278,7 @@ mod tests {
     use super::*;
     use approx::assert_relative_eq;
     use ndarray::array;
+    use skel::Manifold;
 
     const TOL: f64 = 1e-10;
 
@@ -392,10 +393,9 @@ mod tests {
 
     #[test]
     fn test_parallel_transport_preserves_norm() {
-        // Use nearby points for better accuracy of the closed-form PT
         let lorentz = LorentzModel::new(1.0);
-        let x = lorentz.from_euclidean(&array![0.1, 0.05].view());
-        let y = lorentz.from_euclidean(&array![0.12, 0.08].view());
+        let x = lorentz.from_euclidean(&array![0.5, -0.2].view());
+        let y = lorentz.from_euclidean(&array![-0.4, 0.3].view());
         let v = make_tangent(&lorentz, &x, &[0.5, -0.3]);
 
         let pt = lorentz.parallel_transport(&x.view(), &y.view(), &v.view());
@@ -403,9 +403,74 @@ mod tests {
         let norm_v = lorentz.minkowski_dot(&v.view(), &v.view());
         let norm_pt = lorentz.minkowski_dot(&pt.view(), &pt.view());
         assert!(
-            (norm_v - norm_pt).abs() < 1e-4,
+            (norm_v - norm_pt).abs() < 1e-12,
             "PT should preserve norm: {norm_v} vs {norm_pt}"
         );
+    }
+
+    #[test]
+    fn test_parallel_transport_preserves_inner_products() {
+        let lorentz = LorentzModel::new(2.5);
+        let x = lorentz.from_euclidean(&array![0.3, -0.15, 0.2].view());
+        let y = lorentz.from_euclidean(&array![-0.25, 0.35, 0.1].view());
+        let u = make_tangent(&lorentz, &x, &[0.4, -0.2, 0.1]);
+        let v = make_tangent(&lorentz, &x, &[-0.15, 0.3, 0.25]);
+
+        let transported_u = lorentz.parallel_transport(&x.view(), &y.view(), &u.view());
+        let transported_v = lorentz.parallel_transport(&x.view(), &y.view(), &v.view());
+        let inner_at_x = lorentz.minkowski_dot(&u.view(), &v.view());
+        let inner_at_y = lorentz.minkowski_dot(&transported_u.view(), &transported_v.view());
+
+        assert_relative_eq!(inner_at_x, inner_at_y, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn test_parallel_transport_round_trips_along_reversed_geodesic() {
+        let lorentz = LorentzModel::new(1.7);
+        let x = lorentz.from_euclidean(&array![0.4, -0.1, 0.2].view());
+        let y = lorentz.from_euclidean(&array![-0.3, 0.25, 0.15].view());
+        let v = make_tangent(&lorentz, &x, &[0.35, -0.2, 0.1]);
+
+        let at_y = lorentz.parallel_transport(&x.view(), &y.view(), &v.view());
+        let at_x = lorentz.parallel_transport(&y.view(), &x.view(), &at_y.view());
+
+        for i in 0..v.len() {
+            assert_relative_eq!(v[i], at_x[i], epsilon = 1e-12);
+        }
+    }
+
+    #[test]
+    fn test_parallel_transport_matches_poincare_differential() {
+        use conversions::poincare_to_lorentz;
+
+        fn tangent_to_lorentz(x: &ArrayView1<f64>, v: &ArrayView1<f64>) -> Array1<f64> {
+            let q = 1.0 - x.dot(x);
+            let xv = x.dot(v);
+            let mut result = Array1::zeros(x.len() + 1);
+            result[0] = 4.0 * xv / (q * q);
+            for i in 0..x.len() {
+                result[i + 1] = 2.0 * v[i] / q + 4.0 * x[i] * xv / (q * q);
+            }
+            result
+        }
+
+        let ball = crate::PoincareBall::new(1.0);
+        let lorentz = LorentzModel::new(1.0);
+        let x_ball = array![0.2, -0.1, 0.05];
+        let y_ball = array![-0.3, 0.2, 0.1];
+        let v_ball = array![0.4, 0.1, -0.2];
+        let x = poincare_to_lorentz(&ball, &x_ball.view());
+        let y = poincare_to_lorentz(&ball, &y_ball.view());
+        let v = tangent_to_lorentz(&x_ball.view(), &v_ball.view());
+
+        let transported = lorentz.parallel_transport(&x.view(), &y.view(), &v.view());
+        let transported_ball =
+            ball.parallel_transport(&x_ball.view(), &y_ball.view(), &v_ball.view());
+        let expected = tangent_to_lorentz(&y_ball.view(), &transported_ball.view());
+
+        for i in 0..expected.len() {
+            assert_relative_eq!(expected[i], transported[i], epsilon = 1e-12);
+        }
     }
 
     #[test]
