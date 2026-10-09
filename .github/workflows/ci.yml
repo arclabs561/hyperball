@@ -8,6 +8,8 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  schedule:
+    - cron: "17 6 * * 1"
 
 env:
   CARGO_TERM_COLOR: always
@@ -59,7 +61,11 @@ jobs:
           toolchain: "1.75.0"
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
+      # thiserror 2.0.21 requires rustc 1.77; the library builds at the
+      # declared 1.75 with 2.0.20. Library lockfiles are not committed, so pin
+      # it for this lane.
       - name: Check MSRV
         run: |
           rm -f Cargo.lock  # v4 lock file requires Cargo 1.83+
+          cargo update -p thiserror --precise 2.0.20
           cargo check
