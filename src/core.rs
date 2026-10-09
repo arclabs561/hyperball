@@ -328,7 +328,7 @@ pub mod conversions {
         let c_sqrt = c.sqrt();
 
         let t = (one + c * x_norm_sq) / (denom * c_sqrt);
-        let scale = two / (denom * c_sqrt);
+        let scale = two / denom;
 
         let mut out = vec![T::zero(); x.len() + 1];
         out[0] = t;
@@ -562,6 +562,24 @@ mod tests {
         let x2 = conversions::lorentz_to_poincare(&lorentz, &xl);
         for i in 0..x.len() {
             assert!(approx_eq(x2[i], x[i], 1e-10));
+        }
+    }
+
+    #[test]
+    fn conversion_core_lands_on_hyperboloid_for_any_curvature() {
+        // -t^2 + |s|^2 = -1/c must hold for every c, not only c = 1.
+        for c in [0.1f64, 0.5, 2.0, 4.0] {
+            let ball = PoincareBallCore::new(c);
+            let lorentz = LorentzModelCore::new(c);
+            let x = [0.2 / c.sqrt(), 0.1 / c.sqrt(), -0.05 / c.sqrt()];
+            assert!(ball.is_in_ball(&x));
+
+            let xl = conversions::poincare_to_lorentz(&ball, &x);
+            assert!(lorentz.is_on_manifold(&xl, 1e-10), "c={c}: {xl:?}");
+            let x2 = conversions::lorentz_to_poincare(&lorentz, &xl);
+            for i in 0..x.len() {
+                assert!(approx_eq(x2[i], x[i], 1e-10), "c={c}: {x2:?} != {x:?}");
+            }
         }
     }
 

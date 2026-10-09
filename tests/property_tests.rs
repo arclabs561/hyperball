@@ -443,4 +443,38 @@ proptest! {
         prop_assert!((d_poincare - d_lorentz).abs() < TOL,
             "Distance mismatch: Poincare {} vs Lorentz {}", d_poincare, d_lorentz);
     }
+
+    // The conversion is an isometry onto <x,x>_L = -1/c for every curvature,
+    // not just c = 1: on the hyperboloid, round-trips, and preserves d_c.
+    #[test]
+    fn conversion_lands_on_hyperboloid_for_any_curvature(
+        c in prop::sample::select(vec![0.1f64, 0.5, 1.0, 2.0, 4.0]),
+        x in poincare_point(3),
+        y in poincare_point(3)
+    ) {
+        use hyperball::lorentz::conversions::{lorentz_to_poincare, poincare_to_lorentz};
+
+        let ball = PoincareBall::<f64>::new(c);
+        let lorentz = LorentzModel::<f64>::new(c);
+        // poincare_point is inside the unit ball; rescale into radius 1/sqrt(c).
+        let x = x / c.sqrt();
+        let y = y / c.sqrt();
+
+        let xl = poincare_to_lorentz(&ball, &x.view());
+        let yl = poincare_to_lorentz(&ball, &y.view());
+        let inner = lorentz.minkowski_dot(&xl.view(), &xl.view());
+        prop_assert!((inner * c + 1.0).abs() < 1e-9,
+            "c={}: <x,x>_L = {} != -1/c", c, inner);
+
+        let back = lorentz_to_poincare(&lorentz, &xl.view());
+        for i in 0..x.len() {
+            prop_assert!((x[i] - back[i]).abs() < TOL / c.sqrt(),
+                "c={}: round trip {} != {}", c, back[i], x[i]);
+        }
+
+        let d_p: f64 = ball.distance(&x.view(), &y.view());
+        let d_l: f64 = lorentz.distance(&xl.view(), &yl.view());
+        prop_assert!((d_p - d_l).abs() < TOL * (1.0 + d_p),
+            "c={}: Poincare {} vs Lorentz {}", c, d_p, d_l);
+    }
 }

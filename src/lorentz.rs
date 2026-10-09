@@ -239,7 +239,8 @@ pub mod conversions {
         let two = T::from_f64(2.0).unwrap();
 
         // t = (1 + c*||x||^2) / (1 - c*||x||^2) / sqrt(c)
-        // space = 2*x / (1 - c*||x||^2) / sqrt(c)
+        // space = 2*x / (1 - c*||x||^2)
+        // so that -t^2 + ||space||^2 = -1/c.
         let denom = one - c * x_norm_sq;
         let c_sqrt = c.sqrt();
 
@@ -247,7 +248,7 @@ pub mod conversions {
 
         let mut result = Array1::zeros(x.len() + 1);
         result[0] = t;
-        let scale = two / (denom * c_sqrt);
+        let scale = two / denom;
         for (i, &val) in x.iter().enumerate() {
             result[i + 1] = val * scale;
         }
