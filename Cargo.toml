@@ -6,6 +6,14 @@ rust-version = "1.75"
 authors = ["Arc <attobop@gmail.com>"]
 description = "Hyperbolic geometry primitives for embeddings"
 license = "MIT OR Apache-2.0"
+include = [
+  "/src/**/*.rs",
+  "/examples/**/*.rs",
+  "/Cargo.toml",
+  "/CHANGELOG.md",
+  "/LICENSE*",
+  "/README.md",
+]
 repository = "https://github.com/arclabs561/hyperball"
 documentation = "https://docs.rs/hyperball"
 keywords = ["hyperbolic", "poincare", "lorentz", "embeddings", "geometry"]
