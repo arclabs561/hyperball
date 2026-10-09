@@ -375,3 +375,44 @@ fn lorentz_high_dimensional() {
     assert!(!d.is_nan(), "High-dim distance should not be NaN");
     assert!(!d.is_infinite(), "High-dim distance should not be infinite");
 }
+
+// =============================================================================
+// f32 near the boundary
+// =============================================================================
+
+/// A point at relative radius 1 - 1e-6 is representable in f32 (machine
+/// epsilon about 6e-8), so log_0 then exp_0 must return it, and the
+/// distance from the origin must match 2/sqrt(c) * artanh(sqrt(c) |x|).
+#[test]
+fn poincare_f32_round_trip_at_radius_one_minus_1e6() {
+    for &c in &[1.0f32, 2.0, 0.5] {
+        let ball = PoincareBall::<f32>::new(c);
+        let r = (1.0 - 1e-6) / c.sqrt();
+        let x = Array1::from_vec(vec![0.6 * r, 0.8 * r]);
+
+        let v = ball.log_map_zero(&x.view());
+        assert!(v.iter().all(|t| t.is_finite()), "c={c}: log_0 = {v:?}");
+        let back = ball.exp_map_zero(&v.view());
+        for i in 0..2 {
+            assert!(
+                (back[i] - x[i]).abs() < 1e-6,
+                "c={c}: x={x:?} back={back:?}"
+            );
+        }
+        assert!(ball.is_in_ball(&back.view()), "c={c}: left the ball");
+
+        // Expected value in f64 from the f32 point actually stored. Near the
+        // boundary artanh has slope 1/(1 - z^2), about 5e5 here, so f32
+        // rounding (eps about 6e-8) inside the library moves d by up to about
+        // 0.03 on a value near 10: a relative tolerance of 1e-2.
+        let origin = Array1::<f32>::zeros(2);
+        let d = ball.distance(&origin.view(), &x.view());
+        let norm = ((x[0] as f64).powi(2) + (x[1] as f64).powi(2)).sqrt();
+        let sqrt_c = (c as f64).sqrt();
+        let expected = 2.0 / sqrt_c * (sqrt_c * norm).atanh();
+        assert!(
+            ((d as f64) - expected).abs() < 1e-2 * expected,
+            "c={c}: d={d} expected={expected}"
+        );
+    }
+}

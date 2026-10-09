@@ -121,6 +121,11 @@
 
 pub mod core;
 
+// Compile and run the README's Rust examples as doctests.
+#[cfg(all(doctest, feature = "ndarray"))]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
+
 #[cfg(feature = "ndarray")]
 use ndarray::{Array1, ArrayView1};
 #[cfg(feature = "ndarray")]

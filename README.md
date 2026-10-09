@@ -7,7 +7,7 @@ Hyperbolic geometry primitives for embeddings.
 
 ## Problem
 
-Tree-like structures (taxonomies, file systems, parse trees) have exponentially many leaves but shallow depth. Euclidean space cannot embed them faithfully in low dimensions: a binary tree of depth 10 has 1024 leaves and needs roughly that many Euclidean dimensions. Hyperbolic space has exponential volume growth, so the same tree fits in 2D with bounded distortion.
+Tree-like structures (taxonomies, file systems, parse trees) have exponentially many leaves but shallow depth. Euclidean space cannot embed them faithfully: no Euclidean embedding of a complete binary tree preserves all of its distances, and the best achievable distortion grows with depth however many dimensions are used (Bourgain 1986). Hyperbolic space has exponential volume growth, so a tree embeds in the 2D hyperbolic plane with distortion arbitrarily close to 1 (Sarkar 2011).
 
 `hyperball` provides distance, exp/log maps, parallel transport, and model
 conversion for the Poincare ball and Lorentz hyperboloid models, plus
@@ -56,6 +56,7 @@ More in [`examples/`](examples/):
 ```toml
 [dependencies]
 hyperball = "0.1.6"
+ndarray = "0.16"
 ```
 
 ```rust
