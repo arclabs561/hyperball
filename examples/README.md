@@ -2,7 +2,7 @@
 
 Hyperbolic geometry for hierarchical data.
 
-## Quick Start
+## Quick start
 
 | Example | Covers |
 |---------|--------|
@@ -36,7 +36,7 @@ Opt-in feature, not part of the supported API. See `docs/rotor-experiment.md`.
 | `poincare_sgd` | Learn Poincare embeddings via Riemannian SGD on a synthetic tree |
 | `lorentz_sgd` | Learn Lorentz embeddings via Riemannian SGD on the same synthetic tree |
 
-Lorentz avoids the numerical instability of Poincare near the boundary but requires Minkowski-metric gradient correction. Both examples embed the same 25-node tree; compare their distance ratios and depth-norm correlation to see the tradeoff.
+The Lorentz example uses a Minkowski-metric gradient correction; the Poincare example rescales gradients using the ball metric. Both examples embed the same 26-node tree; compare their distance ratios and depth-norm correlation to see the tradeoff.
 
 ```sh
 cargo run --example taxonomy_embedding --release
@@ -45,7 +45,7 @@ cargo run --example poincare_sgd --release
 cargo run --example lorentz_sgd --release
 ```
 
-## Hyperbolic Geometry
+## Hyperbolic geometry
 
 Hyperbolic volume grows exponentially with radius.
 
