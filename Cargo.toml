@@ -37,6 +37,9 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [features]
 default = ["ndarray"]
 ndarray = ["dep:ndarray"]
+# No-op: the innr dependency it enabled was removed after 0.1.6. Kept so
+# dependents that enable it still build.
+simd = []
 
 [[bench]]
 name = "hyperbolic"
