@@ -44,8 +44,9 @@ More in [`examples/`](examples/):
 - `taxonomy_embedding` evaluates hand-crafted Poincare coordinates for a small, WordNet-inspired taxonomy.
 - `hierarchy_recovery` examines how a synthetic hierarchy appears in hyperbolic and Euclidean distance summaries.
 - `distortion_vs_dimension` compares one deterministic tree construction across dimensions, inspired by work on Poincare embeddings.
-- `graph_diagnostics` reports delta-hyperbolicity and ultrametric violation for small graph distance matrices. These are descriptive signals, not a prediction of embedding quality.
+- `graph_diagnostics` reports delta-hyperbolicity and ultrametric violation for small graph distance matrices. These are descriptive signals, not a prediction of embedding quality. The exact four-point delta diagnostic is `O(n^4)`, intended for small `n`.
 - `poincare_basics` and `lorentz_basics` walk through the two equivalent models of hyperbolic space (ball and hyperboloid) side by side.
+- `poincare_sgd` learns Poincare embeddings by Riemannian SGD on a synthetic 25-node tree; `lorentz_sgd` does the same in the Lorentz model.
 
 ## What it provides
 
@@ -72,6 +73,26 @@ let d = ball.distance(&x.view(), &y.view());
 let v = ball.log_map_zero(&x.view());     // tangent at origin pointing to x
 let x_back = ball.exp_map_zero(&v.view()); // round-trip
 ```
+
+Inputs are caller-validated: every method assumes each point satisfies
+`c‖x‖² < 1`. Outside that domain the result is unspecified: `distance` and
+`log_map_zero` can return `NaN`, `∞`, or a finite but meaningless value. Call
+`is_in_ball` or `project` first.
+
+### Validated points
+
+`BallPoint<T>` (`hyperball::core`) carries the admissibility invariant
+`‖x‖ < 1/√c`, so boundary handling is decided at construction rather than
+per call site:
+
+- `BallPoint::new(c, coords)` rejects non-finite coordinates and any point with
+  `‖x‖ >= 1/√c` (`BallPointError`), including the boundary itself.
+- `BallPoint::project(c, x)` clamps exactly like `PoincareBall::project`.
+- `BallPoint::distance` and `BallPoint::mobius_add` match the slice API
+  bit-for-bit, because they delegate to it unchanged.
+
+The free slice methods (`PoincareBall::distance` and the rest) remain for now;
+they are the unchecked layer and will be deprecated in a later breaking release.
 
 ## Tests
 
