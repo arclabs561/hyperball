@@ -14,6 +14,19 @@
 //! Notes:
 //! - The `diagnostics` submodule is intentionally “small n only” (\(O(n^4)\) exact δ) and exists
 //!   to validate whether a dataset is plausibly tree-like before committing to heavier machinery.
+//!
+//! ## Typed points vs. free coordinates
+//!
+//! Admissibility (`||x|| < 1/sqrt(c)`) is part of the Poincaré metric space, not an
+//! optional precondition. [`BallPoint`] carries that invariant in the type: it can
+//! only be built through [`BallPoint::new`] (rejects inadmissible input) or
+//! [`BallPoint::project`] (clamps exactly like [`PoincareBallCore::project`]).
+//!
+//! The slice-based methods on [`PoincareBallCore`] accept any `&[T]` and remain the
+//! unchecked layer. **`BallPoint` is the surface intended to survive**; the free
+//! slice methods are kept for the current additive pass and will be deprecated in a
+//! later breaking release, so new code should take `&BallPoint<T>` rather than
+//! re-deciding boundary behaviour per call site.
 
 use num_traits::{Float, FromPrimitive};
 
@@ -136,6 +149,129 @@ where
         } else {
             x.to_vec()
         }
+    }
+}
+
+/// Reason a [`BallPoint`] was rejected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum BallPointError {
+    /// Curvature was not finite and strictly positive.
+    #[error("curvature must be finite and positive")]
+    InvalidCurvature,
+    /// At least one coordinate was `NaN` or infinite.
+    #[error("coordinates must all be finite")]
+    NonFiniteCoords,
+    /// The point is not strictly inside the ball: `||x|| >= 1/sqrt(c)`.
+    #[error("point is not strictly inside the ball: ||x|| >= 1/sqrt(c)")]
+    OutsideBall,
+}
+
+/// A point strictly inside the Poincaré ball of curvature `c`.
+///
+/// The admissibility condition `||x|| < 1/sqrt(c)` holds for the whole lifetime of
+/// the value: both constructors either reject or clamp, so `distance` and
+/// `mobius_add` never see a boundary or out-of-ball argument. Results are
+/// bit-identical to the slice API, because the arithmetic is delegated unchanged.
+///
+/// ```
+/// use hyperball::core::BallPoint;
+///
+/// let x = BallPoint::new(1.0, vec![0.2, -0.1]).unwrap();
+/// let y = BallPoint::project(1.0, &[2.0, -3.0]);
+/// assert!(y.coords()[0] < 1.0);
+/// assert!(x.distance(&x) == 0.0);
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct BallPoint<T> {
+    c: T,
+    coords: Vec<T>,
+}
+
+impl<T> BallPoint<T>
+where
+    T: Float + FromPrimitive,
+{
+    /// Validate `coords` as a point of the ball with curvature `c`.
+    ///
+    /// Rejects non-finite curvature, non-finite coordinates, and any point with
+    /// `||x|| >= 1/sqrt(c)` (the boundary is *not* part of the space).
+    pub fn new(c: T, coords: Vec<T>) -> Result<Self, BallPointError> {
+        if !(c.is_finite() && c > T::zero()) {
+            return Err(BallPointError::InvalidCurvature);
+        }
+        if coords.iter().any(|v| !v.is_finite()) {
+            return Err(BallPointError::NonFiniteCoords);
+        }
+        // `dot` sums non-negative products, so `norm_sq` is `>= 0` or `inf`, never NaN.
+        if dot(&coords, &coords) >= T::one() / c {
+            return Err(BallPointError::OutsideBall);
+        }
+        Ok(Self { c, coords })
+    }
+
+    /// Clamp `x` into the ball exactly as [`PoincareBallCore::project`] does, then
+    /// return it as a validated point.
+    ///
+    /// The reused clamp is `max_norm = sqrt(1/c) * (1 - sqrt(epsilon))`, with
+    /// `scale = max_norm / ||x||` applied to every coordinate when
+    /// `||x|| > max_norm`; otherwise `x` is copied unchanged.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `c` is not finite and positive, or if any coordinate of `x` is
+    /// non-finite (`project` cannot clamp `NaN`/`inf` into a valid point).
+    pub fn project(c: T, x: &[T]) -> Self {
+        let ball = PoincareBallCore::new(c);
+        let coords = ball.project(x);
+        assert!(
+            coords.iter().all(|v| v.is_finite()),
+            "cannot project non-finite coordinates into the ball"
+        );
+        assert!(
+            ball.is_in_ball(&coords),
+            "projected point is not strictly inside the ball"
+        );
+        Self { c, coords }
+    }
+
+    /// Coordinates of the point.
+    pub fn coords(&self) -> &[T] {
+        &self.coords
+    }
+
+    /// Curvature `c` of the ball this point belongs to.
+    pub fn curvature(&self) -> T {
+        self.c
+    }
+
+    /// Hyperbolic distance, delegated to [`PoincareBallCore::distance`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the two points belong to balls of different curvature.
+    pub fn distance(&self, other: &Self) -> T {
+        assert!(
+            self.c == other.c,
+            "points must belong to balls of the same curvature"
+        );
+        self.ball().distance(&self.coords, &other.coords)
+    }
+
+    /// Möbius addition, delegated to [`PoincareBallCore::mobius_add`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the two points belong to balls of different curvature.
+    pub fn mobius_add(&self, other: &Self) -> Vec<T> {
+        assert!(
+            self.c == other.c,
+            "points must belong to balls of the same curvature"
+        );
+        self.ball().mobius_add(&self.coords, &other.coords)
+    }
+
+    fn ball(&self) -> PoincareBallCore<T> {
+        PoincareBallCore::new(self.c)
     }
 }
 
@@ -619,5 +755,149 @@ mod tests {
         ];
         let delta = diagnostics::delta_hyperbolicity_four_point_exact_f64(&d, n);
         assert!((delta - 1.0).abs() < 1e-12, "expected 1, got {delta}");
+    }
+
+    #[test]
+    fn ball_point_project_lands_strictly_inside() {
+        for c in [1e-6f64, 0.25, 1.0, 4.0, 1e6] {
+            let ball = PoincareBallCore::new(c);
+            let radius = (1.0 / c).sqrt();
+            // Out of the ball, and exactly at the boundary.
+            for x in [
+                vec![2.0 / c.sqrt(), -3.0 / c.sqrt()],
+                vec![radius, 0.0],
+                vec![0.0, -radius, radius],
+            ] {
+                let p = BallPoint::project(c, &x);
+                let norm = dot(p.coords(), p.coords()).sqrt();
+
+                assert!(norm < radius, "c={c}: norm={norm} radius={radius}");
+                assert!(norm > 0.0, "c={c}: projection collapsed to the origin");
+                assert!(ball.is_in_ball(p.coords()), "c={c}");
+                assert_eq!(p.curvature(), c);
+                // Reuses the existing clamp exactly, so results are bit-identical.
+                let clamped = ball.project(&x);
+                assert_eq!(p.coords().len(), clamped.len());
+                for (a, b) in p.coords().iter().zip(clamped.iter()) {
+                    assert_eq!(a.to_bits(), b.to_bits(), "c={c}: {a} != {b}");
+                }
+            }
+
+            // Already-admissible input is copied, not rescaled.
+            let inside = vec![0.1 / c.sqrt(), -0.2 / c.sqrt()];
+            let p = BallPoint::project(c, &inside);
+            for (a, b) in p.coords().iter().zip(inside.iter()) {
+                assert_eq!(a.to_bits(), b.to_bits(), "c={c}");
+            }
+        }
+    }
+
+    #[test]
+    fn ball_point_rejects_boundary_point() {
+        for c in [0.5f64, 1.0, 2.0] {
+            let radius = (1.0 / c).sqrt();
+            assert_eq!(
+                BallPoint::new(c, vec![radius, 0.0]),
+                Err(BallPointError::OutsideBall)
+            );
+            assert_eq!(
+                BallPoint::new(c, vec![0.0, 0.0, radius * 1.000_000_1]),
+                Err(BallPointError::OutsideBall)
+            );
+            // Just inside is accepted.
+            let ok = BallPoint::new(c, vec![radius * 0.999, 0.0]);
+            assert!(ok.is_ok(), "c={c}: {ok:?}");
+        }
+    }
+
+    #[test]
+    fn ball_point_rejects_non_finite_coords() {
+        for coords in [
+            vec![f64::NAN, 0.0],
+            vec![0.0, f64::INFINITY],
+            vec![f64::NEG_INFINITY, 0.0],
+        ] {
+            assert_eq!(
+                BallPoint::new(1.0, coords),
+                Err(BallPointError::NonFiniteCoords)
+            );
+        }
+        assert_eq!(
+            BallPoint::new(f64::NAN, vec![0.0, 0.0]),
+            Err(BallPointError::InvalidCurvature)
+        );
+    }
+
+    #[test]
+    fn ball_point_distance_matches_slice_api_bit_for_bit() {
+        for c in [0.25f64, 1.0, 4.0] {
+            let ball = PoincareBallCore::new(c);
+            let scale = 1.0 / c.sqrt();
+            // Grid of admissible base vectors in the unit ball.
+            let mut raw: Vec<Vec<f64>> = Vec::new();
+            for a in [-0.8, -0.3, 0.0, 0.3, 0.8] {
+                for b in [-0.4, 0.0, 0.4] {
+                    raw.push(vec![a * scale, b * scale]);
+                }
+            }
+            let points: Vec<BallPoint<f64>> = raw
+                .iter()
+                .map(|x| BallPoint::new(c, x.clone()).expect("grid point is admissible"))
+                .collect();
+
+            for (i, x) in raw.iter().enumerate() {
+                for (j, y) in raw.iter().enumerate() {
+                    let typed = points[i].distance(&points[j]);
+                    let slice = ball.distance(x, y);
+                    assert_eq!(typed.to_bits(), slice.to_bits(), "c={c} i={i} j={j}");
+
+                    let typed_add = points[i].mobius_add(&points[j]);
+                    let slice_add = ball.mobius_add(x, y);
+                    for (k, (a, b)) in typed_add.iter().zip(slice_add.iter()).enumerate() {
+                        assert_eq!(a.to_bits(), b.to_bits(), "c={c} i={i} j={j} k={k}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ball_point_distance_is_symmetric_and_zero_on_self() {
+        let c = 2.0f64;
+        let scale = 1.0 / c.sqrt();
+        let points: Vec<BallPoint<f64>> = [
+            vec![0.0, 0.0],
+            vec![0.1 * scale, -0.2 * scale],
+            vec![-0.7 * scale, 0.3 * scale],
+            vec![0.999_999 * scale, 0.0],
+        ]
+        .iter()
+        .map(|x| BallPoint::new(c, x.clone()).unwrap())
+        .collect();
+
+        for (i, p) in points.iter().enumerate() {
+            assert_eq!(p.distance(p), 0.0, "d(x,x) must be exactly zero at i={i}");
+            for (j, q) in points.iter().enumerate() {
+                assert_eq!(p.distance(q).to_bits(), q.distance(p).to_bits(), "{i},{j}");
+                assert!(p.distance(q) >= 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn ball_point_mobius_add_matches_slice_api_bit_for_bit() {
+        let c = 1.0f64;
+        let ball = PoincareBallCore::new(c);
+        let x = [0.2, -0.1, 0.05];
+        let zero = [0.0, 0.0, 0.0];
+        let px = BallPoint::new(c, x.to_vec()).unwrap();
+        let pz = BallPoint::new(c, zero.to_vec()).unwrap();
+
+        let typed = px.mobius_add(&pz);
+        let slice = ball.mobius_add(&x, &zero);
+        for (a, b) in typed.iter().zip(slice.iter()) {
+            assert_eq!(a.to_bits(), b.to_bits());
+        }
+        assert_eq!(px.coords(), &x);
     }
 }
