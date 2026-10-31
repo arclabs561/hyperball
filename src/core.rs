@@ -65,30 +65,20 @@ where
     pub fn distance(&self, x: &[T], y: &[T]) -> T {
         assert_eq!(x.len(), y.len());
 
-        // diff = (-x) ⊕ y, computed without allocating neg_x
-        // Mobius addition: (-x) ⊕ y = (A*(-x) + B*y) / C
-        // where A = 1 + 2c<-x,y> + c||y||^2, B = 1 - c||-x||^2 = 1 - c||x||^2
-        //       C = 1 + 2c<-x,y> + c^2||x||^2||y||^2
-        let x_sq = dot(x, x);
-        let y_sq = dot(y, y);
-        let neg_x_dot_y = -dot(x, y); // <-x, y> = -<x, y>
+        // (1/sqrt(c)) arcosh(1 + 2c||x - y||^2 / ((1 - c||x||^2)(1 - c||y||^2))),
+        // equal to (2/sqrt(c)) artanh(sqrt(c) ||(-x) ⊕ y||). The artanh form
+        // rounds its argument to 1 near the boundary and returns infinity.
+        let one = T::one();
         let two = T::from_f64(2.0).unwrap();
-
-        let a = T::one() + two * self.c * neg_x_dot_y + self.c * y_sq;
-        let b = T::one() - self.c * x_sq;
-        let c_denom = T::one() + two * self.c * neg_x_dot_y + self.c * self.c * x_sq * y_sq;
-
-        // ||diff||^2 = sum_i ((a*(-x_i) + b*y_i) / c_denom)^2
-        let inv_c = T::one() / c_denom;
-        let mut diff_norm_sq = T::zero();
+        let mut diff_sq = T::zero();
         for i in 0..x.len() {
-            let di = (a * (-x[i]) + b * y[i]) * inv_c;
-            diff_norm_sq = diff_norm_sq + di * di;
+            let di = x[i] - y[i];
+            diff_sq = diff_sq + di * di;
         }
-        let diff_norm = diff_norm_sq.sqrt();
-
-        let c_sqrt = self.c.sqrt();
-        two / c_sqrt * (c_sqrt * diff_norm).atanh()
+        let delta =
+            two * self.c * diff_sq / ((one - self.c * dot(x, x)) * (one - self.c * dot(y, y)));
+        // arcosh(1 + delta) = ln(1 + delta + sqrt(delta * (delta + 2))), exact for small delta.
+        (delta + (delta * (delta + two)).sqrt()).ln_1p() / self.c.sqrt()
     }
 
     /// Log map at origin.

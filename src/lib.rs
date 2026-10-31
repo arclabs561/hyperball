@@ -146,7 +146,7 @@ impl Manifold for PoincareBall<f64> {
         let v_norm = v.dot(v).sqrt();
         let lambda_x = 2.0 / (1.0 - self.c * x.dot(x));
 
-        if v_norm < 1e-6 {
+        if v_norm == 0.0 {
             return x.to_owned();
         }
 
@@ -283,15 +283,22 @@ where
     /// This is the geodesic distance on the Riemannian manifold \((\mathbb{B}^d_c, g)\).
     /// Near the origin it approximates \(2\|x - y\|\); near the boundary it grows
     /// logarithmically in \(1/(1-c\|x\|^2)\).
+    ///
+    /// Evaluated through the equivalent form
+    /// \(\frac{1}{\sqrt{c}}\,\mathrm{arcosh}\bigl(1 + \frac{2c\|x - y\|^2}{(1 - c\|x\|^2)(1 - c\|y\|^2)}\bigr)\):
+    /// near the boundary \(\sqrt{c}\,\|(-x) \oplus_c y\|\) rounds to 1 and
+    /// arctanh returns infinity for points inside the ball.
     pub fn distance(&self, x: &ArrayView1<T>, y: &ArrayView1<T>) -> T {
-        let neg_x = x.mapv(|v| -v);
-        let neg_x_view = neg_x.view();
-        let diff = self.mobius_add(&neg_x_view, y);
-        let diff_norm = diff.dot(&diff).sqrt();
-        let c_sqrt = self.c.sqrt();
+        let one = T::one();
         let two = T::from_f64(2.0).unwrap();
-
-        two / c_sqrt * (c_sqrt * diff_norm).atanh()
+        let diff_sq = x
+            .iter()
+            .zip(y.iter())
+            .fold(T::zero(), |acc, (&a, &b)| acc + (a - b) * (a - b));
+        let delta =
+            two * self.c * diff_sq / ((one - self.c * x.dot(x)) * (one - self.c * y.dot(y)));
+        // arcosh(1 + delta) = ln(1 + delta + sqrt(delta * (delta + 2))), exact for small delta.
+        (delta + (delta * (delta + two)).sqrt()).ln_1p() / self.c.sqrt()
     }
 
     /// Logarithmic map at the origin: \(\log_0(y) = \frac{\mathrm{arctanh}(\sqrt{c}\|y\|)}{\sqrt{c}\|y\|}\,y\).

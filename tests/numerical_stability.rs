@@ -416,3 +416,61 @@ fn poincare_f32_round_trip_at_radius_one_minus_1e6() {
         );
     }
 }
+
+// =============================================================================
+// Boundary regressions
+// =============================================================================
+
+/// Antipodal points at the radius `project` clamps to: the exact distance is
+/// 4 artanh(r) = 2 ln((1 + r) / (1 - r)), about 37.43. The Mobius form
+/// rounds `||(-x) + y||` to 1 here and returned +inf.
+#[test]
+fn poincare_distance_finite_for_projected_antipodal_points() {
+    let ball = PoincareBall::<f64>::new(1.0);
+    let x = ball.project(&ndarray::array![2.0, 0.0].view());
+    let y = x.mapv(|v| -v);
+    assert!(ball.is_in_ball(&x.view()));
+    let r = x[0];
+    let exact = 2.0 * ((1.0 + r) / (1.0 - r)).ln();
+
+    let d = ball.distance(&x.view(), &y.view());
+    assert!((d - exact).abs() < 1e-6 * exact, "d={d}, exact={exact}");
+
+    let core = hyperball::core::PoincareBallCore::new(1.0f64);
+    let d = core.distance(&[r, 0.0], &[-r, 0.0]);
+    assert!(
+        (d - exact).abs() < 1e-6 * exact,
+        "core d={d}, exact={exact}"
+    );
+}
+
+/// Points at norm 1 - 1e-9 are inside the ball; their distance must be finite.
+#[test]
+fn poincare_distance_finite_one_minus_1e9_from_boundary() {
+    let ball = PoincareBall::<f64>::new(1.0);
+    let r: f64 = 1.0 - 1e-9;
+    let x = ndarray::array![r, 0.0];
+    let y = ndarray::array![-r, 0.0];
+    let exact = 2.0 * ((1.0 + r) / (1.0 - r)).ln();
+    let d = ball.distance(&x.view(), &y.view());
+    assert!((d - exact).abs() < 1e-6 * exact, "d={d}, exact={exact}");
+}
+
+/// exp_x(v) moves a geodesic distance lambda_x ||v|| (Ganea et al. 2018,
+/// Lemma 2). At x = [0.999, 0] with ||v|| = 5e-7 that is about 5.0025e-4, so a
+/// small Euclidean step near the boundary must not be dropped.
+#[test]
+fn poincare_exp_map_small_step_near_boundary_moves() {
+    use skel::Manifold;
+    let ball = PoincareBall::<f64>::new(1.0);
+    let x = ndarray::array![0.999, 0.0];
+    let v = ndarray::array![5e-7, 0.0];
+    let lambda_x = 2.0 / (1.0 - 0.999f64 * 0.999);
+    let expected = lambda_x * 5e-7;
+    let y = ball.exp_map(&x.view(), &v.view());
+    let d = ball.distance(&x.view(), &y.view());
+    assert!(
+        (d - expected).abs() < 1e-3 * expected,
+        "moved {d}, expected {expected}"
+    );
+}
