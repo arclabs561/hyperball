@@ -26,6 +26,10 @@ skel = "0.1.1"
 ndarray = { version = "0.16", optional = true }
 num-traits = "0.2"
 thiserror = "2.0"
+# Experimental only: `rotor-experiment` compares Cl(D,1) rotors against the
+# exp/log path. geomalg declares rust-version 1.85, so the feature is opt-in and
+# the crate's own MSRV (1.75) is unchanged for default builds.
+geomalg = { version = "0.1.0", optional = true }
 
 [dev-dependencies]
 approx = "0.5"
@@ -40,6 +44,9 @@ ndarray = ["dep:ndarray"]
 # No-op: the innr dependency it enabled was removed after 0.1.6. Kept so
 # dependents that enable it still build.
 simd = []
+# Not part of the supported API: enables `src/rotor_experiment.rs` and the
+# `rotor_experiment` example. See docs/rotor-experiment.md.
+rotor-experiment = ["dep:geomalg", "ndarray"]
 
 [[bench]]
 name = "hyperbolic"
@@ -79,6 +86,10 @@ required-features = ["ndarray"]
 
 [[example]]
 name = "graph_diagnostics"
+
+[[example]]
+name = "rotor_experiment"
+required-features = ["rotor-experiment", "ndarray"]
 
 
 [package.metadata.docs.rs]

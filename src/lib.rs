@@ -134,6 +134,13 @@ use num_traits::{Float, FromPrimitive, Zero};
 #[cfg(feature = "ndarray")]
 pub mod lorentz;
 
+/// Measurement-only rotor path. Not supported API; see
+/// `docs/rotor-experiment.md`. Compiled only with the `rotor-experiment`
+/// feature.
+#[cfg(all(feature = "ndarray", feature = "rotor-experiment"))]
+#[doc(hidden)]
+pub mod rotor_experiment;
+
 #[cfg(feature = "ndarray")]
 pub use lorentz::LorentzModel;
 

@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
+### Added
+
+- `rotor-experiment` feature: a Cl(3,1) rotor implementation of Lorentz boosts
+  behind a non-default feature, measured against the existing exp/log path in
+  `examples/rotor_experiment.rs`. Recorded in `docs/rotor-experiment.md`:
+  accuracy ties (worst scaled disagreement 1.3e-13) and the rotor path is 2x to
+  11x slower. No public API or default code-path change.
+
 ## [0.1.7] - 2026-11-01
 
 ### Added
