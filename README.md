@@ -21,6 +21,8 @@ diagnostics for measuring how tree-like a dataset is.
 cargo run --example tree_embedding
 ```
 
+Excerpt of the output:
+
 ```text
 Tree structure:
        root
@@ -29,14 +31,14 @@ Tree structure:
     / \    / \
    A1 A2  B1 B2
 
+5. Euclidean vs Hyperbolic Comparison
+   (Same coordinates, different metrics. See note in source.)
    Distance | Euclidean | Hyperbolic | Ratio
    ---------|-----------|------------|-------
    d(root,A)  |     0.500 |      1.099 |   2.20x
    d(root,A1) |     0.806 |      2.232 |   2.77x
+   d(A,A1)    |     0.316 |      1.167 |   3.69x
    d(A1,B1)   |     0.600 |      2.366 |   3.94x
-
-   Notice: hyperbolic distances grow faster for points near boundary.
-   This toy placement illustrates radial separation by depth.
 ```
 
 More in [`examples/`](examples/):
@@ -100,16 +102,15 @@ they are the unchecked layer and will be deprecated in a later breaking release.
 cargo test -p hyperball
 ```
 
-The suite includes unit tests, property-based tests (proptest), and numerical stability tests covering Mobius axioms (inverse, left cancellation), metric axioms (symmetry, triangle inequality, boundary growth), exp/log round-trips, parallel transport norm preservation, cross-model isometry, and Lorentz tangent space operations.
+The suite includes unit tests, property-based tests (proptest) for the Mobius
+and metric axioms, exp/log round-trips and cross-model isometry, and
+numerical stability tests near the boundary.
 
 ## References
 
 - Nickel & Kiela (2017), "Poincare Embeddings for Learning Hierarchical Representations"
 - Nickel & Kiela (2018), "Learning Continuous Hierarchies in the Lorentz Model"
 - Mishne et al. (2023), "The Numerical Stability of Hyperbolic Representation Learning" (ICML)
-- Kratsios et al. (2023), "Capacity Bounds for Hyperbolic Neural Network Representations of Latent Tree Structures"
-- Yang et al. (2023), "Hyperbolic Representation Learning: Revisiting and Advancing" (ICML)
-- Chen & Lipman (2023), "Riemannian Flow Matching on General Geometries"
 
 ## License
 
