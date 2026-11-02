@@ -8,7 +8,8 @@
 
 use hyperball::lorentz::LorentzModel;
 use hyperball::rotor_experiment::{
-    apply_rotor, boost_from_tangent, point_from_mv, rotor_unit_drift, translation_rotor, Minkowski,
+    apply_rotor, axis_rotor, boost_from_tangent, mv_from_point, point_from_mv, point_to_vector,
+    rotor_unit_drift, translation_rotor, vector_to_point, Minkowski,
 };
 use ndarray::{Array1, ArrayView1};
 
@@ -146,6 +147,119 @@ fn rotor_translation_and_transport_match_the_closed_forms() {
         worst <= AGREEMENT_BOUND,
         "rotor translation/transport diverged: {worst:.3e}"
     );
+}
+
+/// `geomalg::Rotor`'s precomputed grade-1 action is an optimization of the
+/// sandwich, not a different transform: it must agree with the generic sandwich
+/// and with `exp_map` on every coordinate plane.
+///
+/// `Rotor::new` indexes two basis vectors, so only the coordinate planes are
+/// reachable here. The point is chosen in the rotor's own plane, which makes
+/// the `exp_map` comparison exact: a boost along `e(axis)` of a point on the
+/// `(e(D), e(axis))` hyperbola is a coordinate-plane boost of rapidity
+/// `offset + rapidity`.
+#[test]
+fn precomputed_action_matches_the_generic_sandwich_and_exp_map() {
+    const RAPIDITIES: [f64; 10] = [
+        1e-6,
+        1e-4,
+        0.01,
+        0.5,
+        1.0,
+        2.0,
+        std::f64::consts::PI - 1e-9,
+        std::f64::consts::PI,
+        std::f64::consts::PI + 1e-9,
+        6.0,
+    ];
+    let lorentz = LorentzModel::<f64>::new(1.0);
+    let mut worst_exp = 0.0f64;
+    let mut worst_sandwich = 0.0f64;
+    let mut worst_norm = 0.0f64;
+    for axis in 0..D {
+        for &offset in &[0.0f64, 0.5, 1.0, 2.0] {
+            for &rapidity in &RAPIDITIES {
+                let mut x = Array1::zeros(D + 1);
+                x[0] = offset.cosh();
+                x[axis + 1] = offset.sinh();
+                // The tangent at `x` of Minkowski norm `rapidity`.
+                let mut v = Array1::zeros(D + 1);
+                v[0] = offset.sinh() * rapidity;
+                v[axis + 1] = offset.cosh() * rapidity;
+
+                let rotor = axis_rotor::<D>(axis, rapidity);
+                let flat = point_to_vector::<D>(&x.view());
+                let single = vector_to_point::<D>(&rotor.apply_vector(&flat));
+                let sandwich = point_from_mv(&rotor.apply(&mv_from_point::<D>(&x.view())));
+                let exp_point = lorentz.exp_map(&x.view(), &v.view());
+
+                worst_exp = worst_exp.max(scaled_diff(&exp_point, &single));
+                worst_sandwich = worst_sandwich.max(scaled_diff(&sandwich, &single));
+                worst_norm = worst_norm.max(norm_residual(&lorentz, &single.view()));
+            }
+        }
+    }
+    assert!(
+        worst_exp <= AGREEMENT_BOUND,
+        "precomputed action and exp_map diverged: {worst_exp:.3e}"
+    );
+    assert!(
+        worst_sandwich <= AGREEMENT_BOUND,
+        "precomputed action and sandwich diverged: {worst_sandwich:.3e}"
+    );
+    assert!(
+        worst_norm <= NORM_DRIFT_BOUND,
+        "precomputed action left the hyperboloid: {worst_norm:.3e}"
+    );
+}
+
+/// `apply_vectors` is the single-call kernel in a loop, so a batch has to
+/// reproduce `apply_vector` exactly, not merely closely.
+#[test]
+fn batched_action_reproduces_the_single_call() {
+    let lorentz = LorentzModel::<f64>::new(1.0);
+    let rotor = axis_rotor::<D>(1, 0.7);
+    let mut rng = 0x2545_f491_4f6c_dd1du64;
+    let mut input = Vec::with_capacity(64 * (D + 1));
+    let mut points = Vec::new();
+    for _ in 0..64 {
+        let mut space = Array1::zeros(D);
+        for axis in 0..D {
+            rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1);
+            space[axis] = ((rng >> 11) as f64 / (1u64 << 53) as f64 - 0.5) * 1.5;
+        }
+        let point = lorentz.from_euclidean(&space.view());
+        input.extend_from_slice(&point_to_vector::<D>(&point.view()));
+        points.push(point);
+    }
+
+    let mut output = vec![0.0; input.len()];
+    rotor.apply_vectors(&input, &mut output);
+    for ((chunk_in, chunk_out), point) in input
+        .chunks_exact(D + 1)
+        .zip(output.chunks_exact(D + 1))
+        .zip(&points)
+    {
+        let single = rotor.apply_vector(chunk_in);
+        for (a, b) in chunk_out.iter().zip(&single) {
+            assert_eq!(
+                a.to_bits(),
+                b.to_bits(),
+                "batched action differs from single"
+            );
+        }
+        let batched = vector_to_point::<D>(chunk_out);
+        let sandwich = point_from_mv(&rotor.apply(&mv_from_point::<D>(&point.view())));
+        assert!(
+            scaled_diff(&batched, &sandwich) <= AGREEMENT_BOUND,
+            "batched action and sandwich diverged: {:.3e}",
+            scaled_diff(&batched, &sandwich)
+        );
+        assert!(
+            norm_residual(&lorentz, &batched.view()) <= NORM_DRIFT_BOUND,
+            "batched action left the hyperboloid"
+        );
+    }
 }
 
 /// `exp_map` zeroes boosts below `|v| = sqrt(1e-15)`; the rotor does not. Pin

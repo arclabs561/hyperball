@@ -8,8 +8,9 @@
 
 use hyperball::lorentz::LorentzModel;
 use hyperball::rotor_experiment::{
-    apply_rotor, axis_boost_rotor, boost_from_tangent, boost_rotor, mv_from_point, point_from_mv,
-    rotor_unit_drift, translation_rotor, Minkowski,
+    apply_rotor, axis_boost_rotor, axis_rotor, boost_from_tangent, boost_rotor, mv_from_point,
+    point_from_mv, point_to_vector, rotor_unit_drift, translation_rotor, vector_to_point,
+    Minkowski,
 };
 use ndarray::{Array1, ArrayView1};
 use rand::prelude::*;
@@ -306,6 +307,98 @@ fn main() {
         point_boost.rotor_drift.max(translate.rotor_drift)
     );
 
+    // --- Precomputed action (geomalg::Rotor) -----------------------------
+    //
+    // `Rotor::new` indexes two basis vectors, so the rotor exists only for a
+    // coordinate plane. Agreement with `exp_map` is still exact and not merely
+    // "the same matrix": a point on the `(e(D), e(axis))` hyperbola boosted
+    // along `e(axis)` is again a coordinate-plane boost, of rapidity
+    // `offset + rapidity`.
+    let axis_lorentz = LorentzModel::<f64>::new(1.0);
+    let mut axis_rapidities = EDGE_RAPIDITIES.to_vec();
+    axis_rapidities.extend([0.01, 0.5, 2.0, 3.9]);
+    let mut precomputed_vs_exp = 0.0f64;
+    let mut precomputed_clamp = 0.0f64;
+    let mut precomputed_configurations = 0usize;
+    let mut precomputed_vs_sandwich = 0.0f64;
+    let mut precomputed_norm = 0.0f64;
+    for axis in 0..D {
+        for &offset in &[0.0f64, 0.5, 1.0, 2.0] {
+            for &rapidity in &axis_rapidities {
+                let mut x = Array1::zeros(D + 1);
+                x[0] = offset.cosh();
+                x[axis + 1] = offset.sinh();
+                // Tangent at `x` of Minkowski norm `rapidity`.
+                let mut v = Array1::zeros(D + 1);
+                v[0] = offset.sinh() * rapidity;
+                v[axis + 1] = offset.cosh() * rapidity;
+
+                let rotor = axis_rotor::<D>(axis, rapidity);
+                let flat = point_to_vector::<D>(&x.view());
+                let single = vector_to_point::<D>(&rotor.apply_vector(&flat));
+                let sandwich = point_from_mv(&rotor.apply(&mv_from_point::<D>(&x.view())));
+                let exp_point = axis_lorentz.exp_map(&x.view(), &v.view());
+
+                // `exp_map` clamps below |v| = 3.2e-8 and returns `x`; the
+                // rotor still boosts. That is the same documented asymmetry as
+                // the general table, so it is reported apart, not averaged in.
+                if rapidity < 1e-6 {
+                    precomputed_clamp = precomputed_clamp.max(max_scaled_diff(&exp_point, &single));
+                } else {
+                    precomputed_vs_exp =
+                        precomputed_vs_exp.max(max_scaled_diff(&exp_point, &single));
+                    precomputed_configurations += 1;
+                }
+                precomputed_vs_sandwich =
+                    precomputed_vs_sandwich.max(max_scaled_diff(&sandwich, &single));
+                precomputed_norm =
+                    precomputed_norm.max(norm_residual(&axis_lorentz, &single.view()));
+            }
+        }
+    }
+
+    // Batched action must reproduce the single call: `apply_vectors` is the
+    // same kernel in a loop, so this has to be bitwise, not approximate.
+    const BATCH: usize = 1000;
+    let mut batch_rng = ChaCha8Rng::seed_from_u64(0xb00b);
+    let batch: Vec<Array1<f64>> = (0..BATCH)
+        .map(|_| random_point(&mut batch_rng, &axis_lorentz))
+        .collect();
+    let mut input = Vec::with_capacity(BATCH * (D + 1));
+    for point in &batch {
+        input.extend_from_slice(&point_to_vector::<D>(&point.view()));
+    }
+    let mut output = vec![0.0; input.len()];
+    let batch_rotor = axis_rotor::<D>(0, 0.7);
+    batch_rotor.apply_vectors(&input, &mut output);
+    let mut batch_mismatch = 0.0f64;
+    let mut batch_norm = 0.0f64;
+    for (chunk_in, chunk_out) in input.chunks_exact(D + 1).zip(output.chunks_exact(D + 1)) {
+        let single = batch_rotor.apply_vector(chunk_in);
+        for (a, b) in chunk_out.iter().zip(&single) {
+            assert_eq!(
+                a.to_bits(),
+                b.to_bits(),
+                "batched action differs from single"
+            );
+            batch_mismatch = batch_mismatch.max((a - b).abs());
+        }
+        let point = vector_to_point::<D>(chunk_out);
+        batch_norm = batch_norm.max(norm_residual(&axis_lorentz, &point.view()));
+    }
+
+    println!("\nprecomputed action (geomalg::Rotor, coordinate planes only)");
+    println!(
+        "  apply_vector vs exp_map    {:.3e} scaled ({precomputed_configurations} configurations)",
+        precomputed_vs_exp
+    );
+    println!("  apply_vector vs sandwich   {precomputed_vs_sandwich:.3e} scaled");
+    println!("  apply_vector norm residual {precomputed_norm:.3e}");
+    println!("  rapidity 1e-8 (exp_map clamps, rotor does not) {precomputed_clamp:.3e} scaled");
+    println!(
+        "  batch of {BATCH} vs single call   {batch_mismatch:.3e} (bitwise equal), norm {batch_norm:.3e}"
+    );
+
     // --- Cost ------------------------------------------------------------
     let lorentz = LorentzModel::<f64>::new(1.0);
     let x = random_point(&mut ChaCha8Rng::seed_from_u64(7), &lorentz);
@@ -314,15 +407,9 @@ fn main() {
     let probe = random_point(&mut ChaCha8Rng::seed_from_u64(23), &lorentz);
     let mut rng = ChaCha8Rng::seed_from_u64(17);
     let origin = lorentz.origin(D);
-    let v_origin = {
-        let mut t = random_tangent(&mut rng, &lorentz, &origin);
-        t[0] = 0.0;
-        t
-    };
     let v = random_tangent(&mut rng, &lorentz, &x);
     let w = random_tangent(&mut rng, &lorentz, &x);
 
-    let rotor_origin: Rotor = boost_from_tangent(&lorentz, &origin.view(), &v_origin.view());
     let rotor_at_x: Rotor = boost_from_tangent(&lorentz, &x.view(), &v.view());
     let rot_xy: Rotor = translation_rotor(&lorentz, &x.view(), &y.view());
     let log_xy = lorentz.log_map(&x.view(), &y.view());
@@ -333,62 +420,179 @@ fn main() {
         lorentz.exp_map(&p.view(), &moved.view())
     };
 
-    let mut timings: Vec<(&str, f64, f64)> = Vec::new();
+    // Only the origin boost exists on all three paths: `Rotor::new` needs a
+    // coordinate plane. `None` marks a path that cannot be built at all.
+    let origin_rapidity = 0.7;
+    let mut v_axis = Array1::zeros(D + 1);
+    v_axis[1] = origin_rapidity;
+    let axis_even: Rotor = boost_rotor(
+        &Minkowski::<D>::basis(D),
+        &Minkowski::<D>::basis(1),
+        origin_rapidity,
+    );
+    let precomputed_origin = axis_rotor::<D>(1, origin_rapidity);
+    let flat_origin = point_to_vector::<D>(&origin.view());
 
-    let exp_ns = bench(|| lorentz.exp_map(&origin.view(), &v_origin.view()));
-    let rotor_ns = bench(|| apply_rotor(&rotor_origin, &origin.view()));
-    timings.push(("boost of origin (rotor prebuilt)", exp_ns, rotor_ns));
+    // Each distinct expression is timed exactly once, so two rows can never
+    // disagree about the cost of the same code.
+    let per_point = |total: f64| total / batch.len() as f64;
 
-    let exp_ns = bench(|| lorentz.exp_map(&x.view(), &v.view()));
-    let rotor_ns = bench(|| apply_rotor(&rotor_at_x, &x.view()));
-    timings.push(("boost of point (rotor prebuilt)", exp_ns, rotor_ns));
+    let exp_origin = bench(|| lorentz.exp_map(&origin.view(), &v_axis.view()));
+    let exp_point = bench(|| lorentz.exp_map(&x.view(), &v.view()));
+    let exp_log_shared = bench(|| lorentz.exp_map(&x.view(), &log_xy.view()));
+    let exp_translate = bench(|| translate_exp(&x, &y, &x));
+    let exp_transport = bench(|| lorentz.parallel_transport(&x.view(), &y.view(), &w.view()));
+    let exp_compose = bench(|| translate_exp(&y, &z, &translate_exp(&x, &y, &probe)));
+    let exp_batch = per_point(bench(|| {
+        for point in &batch {
+            black_box(lorentz.exp_map(&origin.view(), &v_axis.view()));
+            black_box(point);
+        }
+    }));
 
-    let exp_ns = bench(|| lorentz.exp_map(&x.view(), &v.view()));
-    let rotor_ns = bench(|| {
+    let sandwich_origin = bench(|| apply_rotor(&axis_even, &origin.view()));
+    let sandwich_origin_built = bench(|| {
+        let r: Rotor = boost_from_tangent(&lorentz, &origin.view(), &v_axis.view());
+        apply_rotor(&r, &origin.view())
+    });
+    let sandwich_point = bench(|| apply_rotor(&rotor_at_x, &x.view()));
+    let sandwich_point_built = bench(|| {
         let r: Rotor = boost_from_tangent(&lorentz, &x.view(), &v.view());
         apply_rotor(&r, &x.view())
     });
-    timings.push(("boost of point (rotor built)", exp_ns, rotor_ns));
-
-    let exp_ns = bench(|| lorentz.exp_map(&x.view(), &log_xy.view()));
-    let rotor_ns = bench(|| apply_rotor(&rot_xy, &x.view()));
-    timings.push(("translate x->y (log shared)", exp_ns, rotor_ns));
-
-    let exp_ns = bench(|| translate_exp(&x, &y, &x));
-    let rotor_ns = bench(|| {
+    let sandwich_log_shared = bench(|| apply_rotor(&rot_xy, &x.view()));
+    let sandwich_translate = bench(|| {
         let r: Rotor = translation_rotor(&lorentz, &x.view(), &y.view());
         apply_rotor(&r, &x.view())
     });
-    timings.push(("translate x->y (rotor built)", exp_ns, rotor_ns));
-
-    let exp_ns = bench(|| lorentz.parallel_transport(&x.view(), &y.view(), &w.view()));
-    let rotor_ns = bench(|| apply_rotor(&rot_xy, &w.view()));
-    timings.push(("parallel transport (rotor prebuilt)", exp_ns, rotor_ns));
-
-    let exp_ns = bench(|| translate_exp(&y, &z, &translate_exp(&x, &y, &probe)));
-    let rotor_ns = bench(|| {
+    let sandwich_transport = bench(|| apply_rotor(&rot_xy, &w.view()));
+    let sandwich_compose = bench(|| {
         let first: Rotor = translation_rotor(&lorentz, &x.view(), &y.view());
         let second: Rotor = translation_rotor(&lorentz, &y.view(), &z.view());
         apply_rotor(&second.geometric(&first), &probe.view())
     });
-    timings.push(("compose 2 translations", exp_ns, rotor_ns));
+    let sandwich_batch = per_point(bench(|| {
+        for point in &batch {
+            black_box(apply_rotor(&axis_even, &point.view()));
+        }
+    }));
+    let sandwich_batch_built = per_point(bench(|| {
+        let r: Rotor = boost_from_tangent(&lorentz, &origin.view(), &v_axis.view());
+        for point in &batch {
+            black_box(apply_rotor(&r, &point.view()));
+        }
+    }));
+
+    let build = bench(|| axis_rotor::<D>(1, origin_rapidity));
+    let pre_origin = bench(|| precomputed_origin.apply_vector(&flat_origin));
+    let pre_origin_built = bench(|| {
+        let r = axis_rotor::<D>(1, origin_rapidity);
+        r.apply_vector(&flat_origin)
+    });
+    let pre_batch = per_point(bench(|| {
+        precomputed_origin.apply_vectors(&input, &mut output);
+        black_box(&output);
+    }));
+    let pre_batch_built = per_point(bench(|| {
+        let r = axis_rotor::<D>(1, origin_rapidity);
+        r.apply_vectors(&input, &mut output);
+    }));
+
+    let timings: Vec<(&str, f64, f64, Option<f64>)> = vec![
+        (
+            "boost of origin (rotor prebuilt)",
+            exp_origin,
+            sandwich_origin,
+            Some(pre_origin),
+        ),
+        (
+            "boost of origin (rotor built)",
+            exp_origin,
+            sandwich_origin_built,
+            Some(pre_origin_built),
+        ),
+        (
+            "boost of point (rotor prebuilt)",
+            exp_point,
+            sandwich_point,
+            None,
+        ),
+        (
+            "boost of point (rotor built)",
+            exp_point,
+            sandwich_point_built,
+            None,
+        ),
+        (
+            "translate x->y (log shared)",
+            exp_log_shared,
+            sandwich_log_shared,
+            None,
+        ),
+        (
+            "translate x->y (rotor built)",
+            exp_translate,
+            sandwich_translate,
+            None,
+        ),
+        (
+            "parallel transport (rotor prebuilt)",
+            exp_transport,
+            sandwich_transport,
+            None,
+        ),
+        (
+            "compose 2 translations",
+            exp_compose,
+            sandwich_compose,
+            None,
+        ),
+        (
+            "1000 pts, rotor prebuilt (per pt)",
+            exp_batch,
+            sandwich_batch,
+            Some(pre_batch),
+        ),
+        (
+            "1000 pts, rotor built once (per pt)",
+            exp_batch,
+            sandwich_batch_built,
+            Some(pre_batch_built),
+        ),
+    ];
 
     println!("\nns/op (best of 7 rounds of >=80 ms each, release build)");
     println!(
-        "  {:<38} {:>11} {:>11} {:>7}",
-        "operation", "exp/log ns", "rotor ns", "ratio"
+        "  {:<40} {:>9} {:>9} {:>11}",
+        "operation", "exp/log", "sandwich", "precomputed"
     );
-    for (label, exp_ns, rotor_ns) in &timings {
-        println!(
-            "  {:<38} {:>11.1} {:>11.1} {:>6.1}x",
-            label,
-            exp_ns,
-            rotor_ns,
-            rotor_ns / exp_ns
-        );
+    for (label, exp_ns, sandwich_ns, precomputed_ns) in &timings {
+        match precomputed_ns {
+            Some(pre) => println!(
+                "  {:<40} {:>9.1} {:>9.1} {:>11.1}",
+                label, exp_ns, sandwich_ns, pre
+            ),
+            None => println!(
+                "  {:<40} {:>9.1} {:>9.1} {:>11}",
+                label, exp_ns, sandwich_ns, "-"
+            ),
+        }
     }
-    // Where the rotor time goes: the sandwich on already-built multivectors, or
-    // the heap-allocated conversions around it.
+    println!("  {:<40} {:>31.1}", "Rotor::new (one rotor)", build);
+
+    println!(
+        "\nprecomputed vs exp/log: single {:.1}x, batch of {} {:.1}x per point",
+        exp_origin / pre_origin,
+        batch.len(),
+        exp_batch / pre_batch
+    );
+    println!(
+        "breakeven for one rotor: build {build:.0} ns / ({exp_origin:.1} - {pre_origin:.1}) ns = \
+         {:.0} points",
+        build / (exp_origin - pre_origin)
+    );
+
+    // Where each path's time goes.
     let mv_x = mv_from_point::<D>(&x.view());
     let mv_probe = mv_from_point::<D>(&probe.view());
     let mut breakdown: Vec<(&str, f64)> = vec![
@@ -408,17 +612,23 @@ fn main() {
             "sandwich, no conversions",
             bench(|| rotor_at_x.sandwich(&mv_probe)),
         ),
+        // Already measured for the table; reused so the breakdown cannot
+        // disagree with it.
+        ("sandwich + conversions", sandwich_point),
+        ("Rotor::new (build, one rotor)", build),
         (
-            "sandwich + conversions",
-            bench(|| apply_rotor(&rotor_at_x, &x.view())),
+            "Rotor::apply (sandwich, prebuilt)",
+            bench(|| precomputed_origin.apply(&mv_probe)),
         ),
+        ("Rotor::apply_vector (single)", pre_origin),
+        ("Rotor::apply_vectors (per point)", pre_batch),
     ];
-    println!("\nrotor path breakdown (ns/op)");
+    println!("\nbreakdown (ns/op)");
     for (label, ns) in &breakdown {
-        println!("  {:<38} {:>11.1}", label, ns);
+        println!("  {:<40} {:>9.1}", label, ns);
     }
     breakdown.clear();
-    let _ = black_box((mv_x, mv_probe));
+    let _ = black_box((mv_x, mv_probe, &output));
 }
 
 /// Best-of-seven wall-clock time per call, with a calibration pass to size the

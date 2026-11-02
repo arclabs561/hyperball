@@ -29,7 +29,7 @@ thiserror = "2.0"
 # Experimental only: `rotor-experiment` compares Cl(D,1) rotors against the
 # exp/log path. geomalg declares rust-version 1.85, so the feature is opt-in and
 # the crate's own MSRV (1.75) is unchanged for default builds.
-geomalg = { version = "0.1.0", optional = true }
+geomalg = { version = "0.1.1", optional = true }
 
 [dev-dependencies]
 approx = "0.5"

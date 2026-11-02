@@ -19,7 +19,7 @@ cargo run --example tree_embedding --release
 
 | Example | Covers |
 |---------|--------|
-| `rotor_experiment` | Cl(3,1) rotor boosts vs the exp/log path: agreement, norm drift, ns/op |
+| `rotor_experiment` | Cl(3,1) rotor boosts vs the exp/log path, generic sandwich and precomputed action: agreement, norm drift, ns/op |
 
 ```sh
 cargo run --release --features rotor-experiment --example rotor_experiment

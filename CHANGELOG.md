@@ -9,9 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com).
 
 - `rotor-experiment` feature: a Cl(3,1) rotor implementation of Lorentz boosts
   behind a non-default feature, measured against the existing exp/log path in
-  `examples/rotor_experiment.rs`. Recorded in `docs/rotor-experiment.md`:
-  accuracy ties (worst scaled disagreement 1.3e-13) and the rotor path is 2x to
-  11x slower. No public API or default code-path change.
+  `examples/rotor_experiment.rs`. Recorded in `docs/rotor-experiment.md`.
+  Accuracy ties (worst scaled disagreement 1.3e-13). On speed: `geomalg` 0.1.1's
+  precomputed `Rotor` action beats `exp_map` by 3.8x for a single call with the
+  rotor prebuilt and by 25x per point over 1,000 points, while the generic
+  sandwich still loses 1.8x to 4.4x. A rotor costs ~610 ns to build, so the win
+  starts at ~10 points sharing it, and `Rotor::new` can only express coordinate
+  planes. No public API or default code-path change.
 
 ## [0.1.7] - 2026-11-01
 

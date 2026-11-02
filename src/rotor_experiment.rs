@@ -23,8 +23,17 @@
 //!
 //! with `R R~ = 1`, acting as `t -> R t R~ = cosh(eta) t + sinh(eta) s`. The
 //! sandwich product is the whole exponential; there is no matrix involved.
-//! [`axis_boost_rotor`] builds the same rotor through `geomalg`'s
+//! `axis_boost_rotor` builds the same rotor through `geomalg`'s
 //! `Cl::rotor(plane_a, plane_b, angle)` for the axis-aligned case.
+//!
+//! ### Precomputed action
+//!
+//! Applying a rotor to a grade-1 vector is linear, so `geomalg` 0.1.1's
+//! [`geomalg::Rotor`] caches the images of the basis vectors and
+//! [`geomalg::Rotor::apply_vector`] becomes a dense `(D+1) x (D+1)` product
+//! instead of two geometric products. `axis_rotor` exposes that type for the
+//! coordinate planes; it takes basis-vector indices, so an arbitrary boost
+//! plane (`sqrt(c) x ^ v`) is not expressible through it.
 
 use crate::lorentz::LorentzModel;
 use geomalg::Cl;
@@ -123,6 +132,53 @@ pub fn translation_rotor<const D: usize>(
 /// Sandwich action `rotate * m * reverse(rotate)` on a point or tangent vector.
 pub fn apply_rotor<const D: usize>(rotate: &Minkowski<D>, m: &ArrayView1<f64>) -> Array1<f64> {
     point_from_mv(&rotate.sandwich(&mv_from_point(m)))
+}
+
+/// `geomalg::Rotor` for the axis-aligned boost plane `e(space_axis) ^ e(D)`.
+///
+/// The angle convention matches [`boost_rotor`] with `time_axis = e(D)`, so the
+/// argument is the rapidity. This is the only shape of boost `Rotor::new` can
+/// build: it indexes two basis vectors, and a boost at a general point lives in
+/// the plane `sqrt(c) x ^ v`, which is not a coordinate plane.
+pub fn axis_rotor<const D: usize>(space_axis: usize, rapidity: f64) -> geomalg::Rotor<D, 1> {
+    geomalg::Rotor::new(space_axis, D, rapidity)
+}
+
+/// Flat `[space..., time]` form of a hyperboloid point.
+///
+/// This is the memory order `mv_from_point` writes and the slice order
+/// [`geomalg::Rotor::apply_vector`] and [`geomalg::Rotor::apply_vectors`]
+/// expect, so one buffer can be moved between the two paths unchanged.
+pub fn point_to_vector<const D: usize>(p: &ArrayView1<f64>) -> Vec<f64> {
+    assert!(
+        p.len() == D + 1,
+        "point needs D + 1 = {} components, got {}",
+        D + 1,
+        p.len()
+    );
+    let mut out: Vec<f64> = p.iter().skip(1).copied().collect();
+    out.push(p[0]);
+    out
+}
+
+/// Inverse of [`point_to_vector`].
+///
+/// # Panics
+///
+/// Panics when `v` does not have `D + 1` components.
+pub fn vector_to_point<const D: usize>(v: &[f64]) -> Array1<f64> {
+    assert!(
+        v.len() == D + 1,
+        "vector needs D + 1 = {} components, got {}",
+        D + 1,
+        v.len()
+    );
+    let mut out = Array1::zeros(D + 1);
+    out[0] = v[D];
+    for (axis, value) in v[..D].iter().enumerate() {
+        out[axis + 1] = *value;
+    }
+    out
 }
 
 /// Deviation of `R R~` from the identity scalar, relative to the square of the
