@@ -137,11 +137,20 @@ pub fn apply_rotor<const D: usize>(rotate: &Minkowski<D>, m: &ArrayView1<f64>) -
 /// `geomalg::Rotor` for the axis-aligned boost plane `e(space_axis) ^ e(D)`.
 ///
 /// The angle convention matches [`boost_rotor`] with `time_axis = e(D)`, so the
-/// argument is the rapidity. This is the only shape of boost `Rotor::new` can
-/// build: it indexes two basis vectors, and a boost at a general point lives in
-/// the plane `sqrt(c) x ^ v`, which is not a coordinate plane.
+/// argument is the rapidity. `Rotor::new` indexes two basis vectors, so it only
+/// builds coordinate-plane boosts; use [`precomputed_rotor`] for a boost at a
+/// general point, which lives in the plane `sqrt(c) x ^ v`.
 pub fn axis_rotor<const D: usize>(space_axis: usize, rapidity: f64) -> geomalg::Rotor<D, 1> {
     geomalg::Rotor::new(space_axis, D, rapidity)
+}
+
+/// Precompute the vector action of any unit rotor, such as
+/// [`translation_rotor`] or [`boost_from_tangent`], with `geomalg::Rotor::from_even`.
+///
+/// Returns `None` when `rotate` is not a unit even multivector (geomalg's
+/// tolerance is `1e-9`).
+pub fn precomputed_rotor<const D: usize>(rotate: Minkowski<D>) -> Option<geomalg::Rotor<D, 1>> {
+    geomalg::Rotor::from_even(rotate)
 }
 
 /// Flat `[space..., time]` form of a hyperboloid point.

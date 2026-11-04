@@ -9,8 +9,8 @@
 use hyperball::lorentz::LorentzModel;
 use hyperball::rotor_experiment::{
     apply_rotor, axis_boost_rotor, axis_rotor, boost_from_tangent, boost_rotor, mv_from_point,
-    point_from_mv, point_to_vector, rotor_unit_drift, translation_rotor, vector_to_point,
-    Minkowski,
+    point_from_mv, point_to_vector, precomputed_rotor, rotor_unit_drift, translation_rotor,
+    vector_to_point, Minkowski,
 };
 use ndarray::{Array1, ArrayView1};
 use rand::prelude::*;
@@ -176,6 +176,9 @@ fn main() {
     let mut point_boost = Agreement::default();
     let mut translate = Agreement::default();
     let mut translate_to_target = 0.0f64;
+    let mut general_vs_exp = 0.0f64;
+    let mut general_vs_sandwich = 0.0f64;
+    let mut general_cases = 0usize;
     let mut transport = 0.0f64;
     let mut clamped = (0.0f64, 0.0f64);
     for case in &cases {
@@ -229,6 +232,15 @@ fn main() {
         let rotor_point = apply_rotor(&rotor, &case.x.view());
         translate.record(&lorentz, &exp_point, &rotor, &rotor_point);
         translate_to_target = translate_to_target.max(max_abs_diff(&rotor_point, &case.y));
+        // The same translation through the precomputed action of a
+        // general-plane rotor (geomalg's `Rotor::from_even`).
+        let general = precomputed_rotor(rotor.clone()).expect("translation rotor is unit");
+        let general_point =
+            vector_to_point::<D>(&general.apply_vector(&point_to_vector::<D>(&case.x.view())));
+        general_vs_exp = general_vs_exp.max(max_scaled_diff(&exp_point, &general_point));
+        general_vs_sandwich =
+            general_vs_sandwich.max(max_scaled_diff(&rotor_point, &general_point));
+        general_cases += 1;
 
         // Parallel transport of a tangent vector along x -> y.
         let closed_form =
@@ -398,6 +410,11 @@ fn main() {
     println!(
         "  batch of {BATCH} vs single call   {batch_mismatch:.3e} (bitwise equal), norm {batch_norm:.3e}"
     );
+    println!("\nprecomputed action at general points (geomalg::Rotor::from_even)");
+    println!(
+        "  translate x->y vs exp_map  {general_vs_exp:.3e} scaled ({general_cases} configurations)"
+    );
+    println!("  translate x->y vs sandwich {general_vs_sandwich:.3e} scaled");
 
     // --- Cost ------------------------------------------------------------
     let lorentz = LorentzModel::<f64>::new(1.0);
@@ -489,6 +506,23 @@ fn main() {
         let r = axis_rotor::<D>(1, origin_rapidity);
         r.apply_vector(&flat_origin)
     });
+    let flat_x = point_to_vector::<D>(&x.view());
+    let pre_at_x = precomputed_rotor(rotor_at_x.clone()).expect("unit rotor");
+    let pre_xy = precomputed_rotor(rot_xy.clone()).expect("unit rotor");
+    let pre_point = bench(|| pre_at_x.apply_vector(&flat_x));
+    let pre_point_built = bench(|| {
+        let r: Rotor = boost_from_tangent(&lorentz, &x.view(), &v.view());
+        precomputed_rotor(r)
+            .expect("unit rotor")
+            .apply_vector(&flat_x)
+    });
+    let pre_log_shared = bench(|| pre_xy.apply_vector(&flat_x));
+    let pre_translate = bench(|| {
+        let r: Rotor = translation_rotor(&lorentz, &x.view(), &y.view());
+        precomputed_rotor(r)
+            .expect("unit rotor")
+            .apply_vector(&flat_x)
+    });
     let pre_batch = per_point(bench(|| {
         precomputed_origin.apply_vectors(&input, &mut output);
         black_box(&output);
@@ -515,25 +549,25 @@ fn main() {
             "boost of point (rotor prebuilt)",
             exp_point,
             sandwich_point,
-            None,
+            Some(pre_point),
         ),
         (
             "boost of point (rotor built)",
             exp_point,
             sandwich_point_built,
-            None,
+            Some(pre_point_built),
         ),
         (
             "translate x->y (log shared)",
             exp_log_shared,
             sandwich_log_shared,
-            None,
+            Some(pre_log_shared),
         ),
         (
             "translate x->y (rotor built)",
             exp_translate,
             sandwich_translate,
-            None,
+            Some(pre_translate),
         ),
         (
             "parallel transport (rotor prebuilt)",
