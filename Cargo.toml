@@ -35,7 +35,7 @@ geomalg = { version = "0.1.1", optional = true }
 approx = "0.5"
 proptest = "1.5"
 rand = "0.9"
-rand_chacha = "0.9"
+rand_chacha = "0.10"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
