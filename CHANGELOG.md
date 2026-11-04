@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com).
 
 ### Added
 
+- `BallPoint::try_project`, the fallible form of `BallPoint::project`: the
+  same clamp, with non-positive or non-finite curvature and non-finite
+  coordinates returned as `BallPointError` instead of panicking.
+
 - `rotor-experiment` feature: a Cl(3,1) rotor implementation of Lorentz boosts
   behind a non-default feature, measured against the existing exp/log path in
   `examples/rotor_experiment.rs`. Recorded in `docs/rotor-experiment.md`.
