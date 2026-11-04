@@ -219,19 +219,33 @@ where
     /// # Panics
     ///
     /// Panics if `c` is not finite and positive, or if any coordinate of `x` is
-    /// non-finite (`project` cannot clamp `NaN`/`inf` into a valid point).
+    /// non-finite (`project` cannot clamp `NaN`/`inf` into a valid point). Use
+    /// [`BallPoint::try_project`] to get those cases as a [`BallPointError`].
     pub fn project(c: T, x: &[T]) -> Self {
+        match Self::try_project(c, x) {
+            Ok(point) => point,
+            Err(err) => panic!("cannot project into the ball: {err}"),
+        }
+    }
+
+    /// Fallible [`BallPoint::project`]: the same clamp, with invalid curvature
+    /// and non-finite coordinates returned as errors instead of panics.
+    ///
+    /// Finite input always clamps to an admissible point, so `OutsideBall` is
+    /// only returned if the clamp itself fails to land inside the ball.
+    pub fn try_project(c: T, x: &[T]) -> Result<Self, BallPointError> {
+        if !(c.is_finite() && c > T::zero()) {
+            return Err(BallPointError::InvalidCurvature);
+        }
+        if x.iter().any(|v| !v.is_finite()) {
+            return Err(BallPointError::NonFiniteCoords);
+        }
         let ball = PoincareBallCore::new(c);
         let coords = ball.project(x);
-        assert!(
-            coords.iter().all(|v| v.is_finite()),
-            "cannot project non-finite coordinates into the ball"
-        );
-        assert!(
-            ball.is_in_ball(&coords),
-            "projected point is not strictly inside the ball"
-        );
-        Self { c, coords }
+        if !ball.is_in_ball(&coords) {
+            return Err(BallPointError::OutsideBall);
+        }
+        Ok(Self { c, coords })
     }
 
     /// Coordinates of the point.
@@ -790,6 +804,33 @@ mod tests {
                 assert_eq!(a.to_bits(), b.to_bits(), "c={c}");
             }
         }
+    }
+
+    #[test]
+    fn ball_point_try_project_matches_project_and_reports_bad_input() {
+        for c in [1e-6f64, 1.0, 1e6] {
+            let x = vec![2.0 / c.sqrt(), -3.0 / c.sqrt()];
+            let tried = BallPoint::try_project(c, &x).expect("finite input clamps");
+            assert_eq!(tried, BallPoint::project(c, &x));
+        }
+        for x in [vec![f64::NAN, 0.0], vec![0.0, f64::NEG_INFINITY]] {
+            assert_eq!(
+                BallPoint::try_project(1.0, &x),
+                Err(BallPointError::NonFiniteCoords)
+            );
+        }
+        for c in [0.0f64, -1.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                BallPoint::try_project(c, &[0.1, 0.1]),
+                Err(BallPointError::InvalidCurvature)
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot project into the ball")]
+    fn ball_point_project_panics_on_nan() {
+        let _ = BallPoint::project(1.0, &[f64::NAN, 0.0]);
     }
 
     #[test]
