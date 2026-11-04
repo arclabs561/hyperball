@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-11-04
+
 ### Added
 
 - `BallPoint::try_project`, the fallible form of `BallPoint::project`: the
@@ -18,8 +20,11 @@ Format: [Keep a Changelog](https://keepachangelog.com).
   precomputed `Rotor` action beats `exp_map` by 3.8x for a single call with the
   rotor prebuilt and by 25x per point over 1,000 points, while the generic
   sandwich still loses 1.8x to 4.4x. A rotor costs ~610 ns to build, so the win
-  starts at ~10 points sharing it, and `Rotor::new` can only express coordinate
-  planes. No public API or default code-path change.
+  starts at ~10 points sharing it. `Rotor::new` only expresses coordinate
+  planes; with `geomalg` 0.1.2, `precomputed_rotor` wraps any unit rotor
+  (`Rotor::from_even`), so a translation at a general point applies in about
+  14 ns against about 53 ns for `exp_map`, after about 1.2 us to build. No
+  public API or default code-path change.
 
 ## [0.1.7] - 2026-11-01
 

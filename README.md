@@ -58,7 +58,7 @@ More in [`examples/`](examples/):
 
 ```toml
 [dependencies]
-hyperball = "0.1.7"
+hyperball = "0.1.8"
 ndarray = "0.16"
 ```
 
