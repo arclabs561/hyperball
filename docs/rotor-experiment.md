@@ -30,12 +30,15 @@ and building the rotor per call is the worst of both. Per-run medians are 4.3x
 
 Two limits keep this from being a migration:
 
-- `geomalg::Rotor::new` indexes two basis vectors, so it builds only the six
-  coordinate planes of Cl(3,1). A boost at a general point lives in the plane
-  `sqrt(c) x ^ v`, which the type cannot express: the fast batch path is
-  reachable today for axis-aligned boosts only. The per-point cost is a dense
-  `(D+1)^2` product with no sparsity test, so it does not depend on the plane;
-  what is missing is a constructor, not throughput.
+- Building the precomputed action is expensive. `geomalg::Rotor::new` builds
+  only the six coordinate planes of Cl(3,1); since geomalg 0.1.2,
+  `Rotor::from_even` (here `precomputed_rotor`) wraps any unit rotor, so a
+  boost or translation at a general point reaches the same path. On the
+  example's 1214 random translations it agrees with `exp_map` to 6.3e-14
+  scaled and with the sandwich to 1.1e-14. A prebuilt general translation
+  applies in about 14 ns against about 53 ns for `exp_map`, but building it
+  costs about 1.2 us, so it pays off only when one translation is applied to
+  tens of points (one run, load average about 66).
 - The win is per-point cost, not a new capability. Accuracy is unchanged, at the
   floating-point floor.
 
@@ -284,12 +287,11 @@ drift in the experiment shows up as a failure.
 - The precomputed path's 22 ns single-call figure is `apply_vector` alone: it
   takes and returns a flat `[f64]` buffer, so it needs no `Cl` and no `ndarray`
   round trip. Its build, 643 ns, is the part that does the conversions.
-- `geomalg::Rotor::new` cannot express a general boost plane, so the batch
-  numbers are for axis-aligned boosts. The per-point kernel is a dense
-  `(D+1)^2` product with no sparsity test, so throughput does not depend on the
-  plane; a general-plane action has the same cost and only needs a constructor
-  (or four `Cl::sandwich` calls from the public API).
-- `geomalg` 0.1.1 declares `rust-version = 1.85`. The feature is opt-in and
+- The batch numbers are for axis-aligned boosts. The per-point kernel is a
+  dense `(D+1)^2` product with no sparsity test, so throughput does not depend
+  on the plane; general-plane rotors from `Rotor::from_even` (geomalg 0.1.2)
+  have the same per-point cost and a costlier build.
+- `geomalg` 0.1.2 declares `rust-version = 1.85`. The feature is opt-in and
   default builds keep the crate's 1.75 MSRV.
 - Timings are wall clock on a shared machine, not instruction counts. Do not
   compare these absolute values with numbers from another host.
