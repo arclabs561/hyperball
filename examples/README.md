@@ -15,7 +15,19 @@ cargo run --example poincare_basics --release
 cargo run --example tree_embedding --release
 ```
 
-## Synthetic Hierarchies
+## Measurement
+
+| Example | Covers |
+|---------|--------|
+| `rotor_experiment` | Cl(3,1) rotor boosts vs the exp/log path, generic sandwich and precomputed action: agreement, norm drift, ns/op |
+
+```sh
+cargo run --release --features rotor-experiment --example rotor_experiment
+```
+
+Opt-in feature, not part of the supported API. See `docs/rotor-experiment.md`.
+
+## Synthetic hierarchies
 
 | Example | Covers |
 |---------|--------|
