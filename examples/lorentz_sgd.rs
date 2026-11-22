@@ -1,6 +1,6 @@
 //! Learned Lorentz Embedding via Riemannian SGD
 //!
-//! Embeds a 25-node tree (3 levels) into the Lorentz (hyperboloid) model.
+//! Embeds a 26-node tree (3 levels) into the Lorentz (hyperboloid) model.
 //! Each epoch: compute distance loss, Euclidean gradient, convert to
 //! Riemannian gradient via Minkowski metric (not conformal factor), retract
 //! with exp_map.

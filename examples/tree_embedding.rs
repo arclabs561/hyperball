@@ -6,21 +6,8 @@
 //! - Children pushed toward boundary
 //! - Siblings at similar radius but different angles
 //!
-//! # Geometric Hierarchy Stack
-//!
-//! The Mathematical Foundation provides different geometries for different structures:
-//!
-//! | Data Type       | Geometry    | Crate       | Why                           |
-//! |-----------------|-------------|-------------|-------------------------------|
-//! | Trees           | Hyperbolic  | hyp         | Exponential volume = trees    |
-//! | DAGs/Lattices   | Boxes       | subsume     | Containment = entailment      |
-//! | Knowledge graphs | Euclidean  | tranz       | Point embeddings, TransE/RotatE |
-//! | Dense vectors   | Euclidean   | vicinity    | HNSW, IVF-PQ, standard ANN    |
-//!
-//! This example shows why 2D hyperbolic space can embed trees that would
-//! require O(depth) dimensions in Euclidean space.
-//!
-//! See also: `subsume/knowledge_graph.rs` for box embedding approach.
+//! Compares Euclidean and hyperbolic distances for the same hand-placed tree.
+//! This is a metric illustration, not an optimized embedding comparison.
 //!
 //! ```bash
 //! cargo run --example tree_embedding --release
@@ -140,10 +127,10 @@ fn main() {
         ball.distance(&a2.view(), &b2.view())
     );
 
-    // 3. Key property: paths through root
-    println!("\n3. Key Property: Paths Through Ancestor");
-    println!("   In hyperbolic space, shortest paths between nodes in different");
-    println!("   branches tend to go 'up' through their common ancestor.\n");
+    // 3. Compare the direct distance with a route through the root
+    println!("\n3. Direct Distance vs Route Through Root");
+    println!("   Compare the direct distance with the sum of distances via the root.");
+    println!("   A longer route through the root is not a shortest path.\n");
 
     let d_a1_b1_direct = ball.distance(&a1.view(), &b1.view());
     let d_a1_root = ball.distance(&a1.view(), &root.view());
@@ -157,20 +144,17 @@ fn main() {
         d_a1_root + d_root_b1
     );
 
-    // 4. Why 2D is enough for trees
-    println!("\n4. Why Low Dimensions Work for Trees");
-    println!("   A binary tree of depth d has 2^d leaves.");
-    println!("   In Euclidean space, you'd need ~d dimensions.");
-    println!("   In hyperbolic space, 2D is often sufficient!\n");
-    println!("   This is because hyperbolic space has exponential volume growth:");
-    println!("   Area at radius r grows like sinh(r), not r^2.");
+    // 4. Scope of this construction
+    println!("\n4. Scope of This Construction");
+    println!("   This example uses hand-placed coordinates in two dimensions.");
+    println!("   It does not measure the best distortion achievable in either geometry.");
 
     // 5. Compare to Euclidean
     //
     // Note: Both columns use the same hand-placed (x,y) coordinates.
     // A fair comparison would optimize each embedding for its own geometry.
     // The point here is that the hyperbolic metric *amplifies* distances
-    // near the boundary, so the same coordinates encode more hierarchy.
+    // near the boundary; this alone does not establish embedding quality.
     println!("\n5. Euclidean vs Hyperbolic Comparison");
     println!("   (Same coordinates, different metrics. See note in source.)");
     let euclidean_dist = |a: &Array1<f64>, b: &Array1<f64>| {
@@ -201,7 +185,7 @@ fn main() {
     }
 
     println!("\n   Notice: hyperbolic distances grow faster for points near boundary.");
-    println!("   This naturally encodes the tree hierarchy!");
+    println!("   This toy placement illustrates radial separation by depth.");
 
     println!("\nDone!");
 }

@@ -1,6 +1,6 @@
 //! Learned Poincare Embedding via Riemannian SGD
 //!
-//! Embeds a small tree (25 nodes, 3 levels) into the 2D Poincare ball by
+//! Embeds a small tree (26 nodes, 3 levels) into the 2D Poincare ball by
 //! minimizing a hyperbolic distance loss.  Each epoch:
 //!   1. For each edge (u,v), compute hyperbolic distance and loss.
 //!   2. Compute the Euclidean gradient of the loss.
@@ -44,7 +44,7 @@ impl Lcg {
 // ---- Tree construction ----
 
 /// Build a balanced ternary tree: root (0) has 3 children, each child has
-/// 3 children, each grandchild has ~2 children.  Total: 1 + 3 + 9 + ~12 = 25.
+/// 3 children, each grandchild has 1 or 2 children. Total: 1 + 3 + 9 + 13 = 26.
 fn build_tree() -> (usize, Vec<(usize, usize)>) {
     let mut edges = Vec::new();
     let mut next_id = 1usize;
@@ -70,7 +70,7 @@ fn build_tree() -> (usize, Vec<(usize, usize)>) {
         }
     }
 
-    // Level 3: each level-2 node -> 1 or 2 children (to get ~25 total)
+    // Level 3: each level-2 node -> 1 or 2 children (26 nodes in total)
     let children_per = [2, 1, 2, 1, 2, 1, 2, 1, 1];
     for (i, &parent) in level2.iter().enumerate() {
         let nc = children_per.get(i).copied().unwrap_or(1);
